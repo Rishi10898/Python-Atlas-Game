@@ -1,4 +1,4 @@
-#Greetings and Rules of the Alus game 
+# Defining Greetings and Rules of the Alus game 
 def intro():
     name = input ("What's your name?")
     print ("Hello", name, "Welcome to this Atlas game")
@@ -18,6 +18,7 @@ def getLives():
                 print("Please pick a number for this question.")
         except:
             print("Please input a number(The reason you are seeing this message is because you didn't input a number for this question the first time around).")
+# Introduction to the user
 intro()
 rule()
 Attempts = input("How many chances do you want if your unable to answer/continue further, but the attempts you choose to have should be less than 10 attempts only.")
