@@ -1,4 +1,3 @@
-#Greetings and Rules of the Alus game
 #Greetings and Rules of the Alus game 
 def intro():
     name = input ("What's your name?")
@@ -8,7 +7,6 @@ def rule():
     Rule_1 = print("You have to tell suburb names only in Auckland District") 
     Rule_2 = print("You shouldn't repeat the same suburb name again") 
     Rule_3 = print("You should start the name with the ending letter of the previous word")
-# The 
 intro()
 rule()
 Attempts = input("How many chances do you want if your unable to answer/continue further, but the attempts you choose to have should be less than 10 attempts only.")
