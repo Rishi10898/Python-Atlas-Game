@@ -47,3 +47,4 @@ if Ask_User == "yes":
     input("Ok, Please start !")
 else: 
     print(Starts_with_A[3]) 
+    User_1 = input()
