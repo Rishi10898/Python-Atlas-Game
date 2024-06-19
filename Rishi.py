@@ -36,10 +36,14 @@ if Rules_4 == "yes":
     print("Let's start the game")
 else: 
     print(rule())
+    Rules_5 = input("Now, Did you understand the rules of this game?")
+    if Rules_5 == "no":
+        print(rule())
+    else:
+        Ask_User = input("Do you want to start the game ?")
 # The main games starts from here
 # Task 2 
-Ask_User = input("Do you want to start the game or shall I?")
 if Ask_User == "yes":
     print("Ok, Please start !")
 else: 
-    print(Starts_with_A[3])
+    print(Starts_with_A[3]) 
