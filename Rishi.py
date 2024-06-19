@@ -44,6 +44,6 @@ else:
 # The main games starts from here
 # Task 2 
 if Ask_User == "yes":
-    print("Ok, Please start !")
+    input("Ok, Please start !")
 else: 
     print(Starts_with_A[3]) 
