@@ -1,7 +1,7 @@
 # Defining Greetings and Rules of the Alus game 
 def intro():
     name = input ("What's your name?")
-    print ("Hello", name, "Welcome to this Atlas game")
+    print("Hello", name, "Welcome to this Atlas game")
     print("This Atlas Game asks you about places in the Auckland Dsitrict that start with the ending letter of a prompt word from the auckland district that the computer will give you.")
 def rule():
     Rule_1 = print("You have to tell suburb names only in Auckland District") 
