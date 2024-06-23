@@ -11,7 +11,7 @@ def getLives():
     while True:
         lives = input("How many lives do you want to do this game?")
         try:
-            lives - int(lives)
+            lives  >= 0 - int(lives) 
             if lives >= 0:
                 return lives
             else:

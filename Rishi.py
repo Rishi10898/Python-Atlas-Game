@@ -43,8 +43,7 @@ else:
         Ask_User = input("Do you want to start the game ?")
 # The main games starts from here
 # Task 2 
-if Ask_User == "yes":
-    input("Ok, Please start !")
-else: 
+if Ask_User == "no":
     print(Starts_with_A[3]) 
-    User_1 = input()
+else: 
+    input("Ok, Please start !")
