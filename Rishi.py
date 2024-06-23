@@ -33,7 +33,7 @@ intro()
 rule()
 Rules_4 = input("Did you understand the rules of this Atlus game?")
 if Rules_4 == "yes":
-    print("Let's start the game")
+    print("Let's start the game") 
 else: 
     print(rule())
     Rules_5 = input("Now, Did you understand the rules of this game?")

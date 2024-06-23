@@ -44,7 +44,7 @@ rule()
 getLives()
 Rules_4 = input("Did you understand the rules of this Atlus game?")
 if Rules_4 == "yes":
-    print("Let's start the game")
+    print("Let's start the game") 
 else: 
     print(rule())
     Rules_5 = input("Now, Did you understand the rules of this game?")
@@ -53,7 +53,7 @@ else:
     else:
         Ask_User = input("Do you want to start the game ?")
 # The main games starts from here 
-if Ask_User == "yes":
-    print("Ok, Please start !")
+if Ask_User == "no":
+    print(Starts_with_A[3]) 
 else: 
-    print(Starts_with_A[3])  
+    input("Ok, Please start !")
