@@ -3,21 +3,25 @@ def intro():
     name = input ("What's your name?")
     print("Hello", name, "Welcome to this Atlas game")
     print("This Atlas Game asks you about places in the Auckland Dsitrict that start with the ending letter of a prompt word from the auckland district that the computer will give you.")
+
 def rule():
     Rule_1 = print("You have to tell suburb names only in Auckland District") 
     Rule_2 = print("You shouldn't repeat the same suburb name again") 
     Rule_3 = print("You should start the name with the ending letter of the previous word")
+
 def getLives():
-    while True:
-        lives = input("How many lives do you want to do this game?")
-        try:
-            lives - int(lives)
-            if lives >= 0:
-                return lives
-            else:
-                print("Please pick a number for this question.")
-        except:
-            print("Please input a number(The reason you are seeing this message is because you didn't input a number for this question the first time around).")
+        while True:
+            lives = input("How many tries/chances/lives do you want for this quiz?")
+            try:
+                 lives = int(lives)
+                 if lives >= 0:
+                      return lives
+                 else:
+                      print("Please pick a number for this question.")
+            except:
+                print("Please input a number(The reason you are seeing this message is because you didn't input a number for this question the first time around).")
+
+
 Starts_with_A = ["Albany","Alfriston","Arch Hill","Auckland CBD","Avondale"]
 Starts_with_B = ["Balmoral","Bayswater","Bayview","Beach Haven","Belmont","Birkdale","Birkenhead","Blockhouse Bay","Botany Downs","Botany","Browns Bay","Bucklands Beach","Burswood"]
 Starts_with_C = ["Campbells Bay","Castor Bay","Chatswood","Clendon Park","Clover Park","Cockle Bay","Conifer Grove"]
