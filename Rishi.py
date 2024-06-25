@@ -18,7 +18,7 @@ def rule_2():
     if Rules_5 == "no":
         print(rule())
     else:
-        print
+        print()
 Starts_with_A = ["Albany","Alfriston","Arch Hill","Auckland CBD","Avondale"]
 Starts_with_B = ["Balmoral","Bayswater","Bayview","Beach Haven","Belmont","Birkdale","Birkenhead","Blockhouse Bay","Botany Downs","Botany","Browns Bay","Bucklands Beach","Burswood"]
 Starts_with_C = ["Campbells Bay","Castor Bay","Chatswood","Clendon Park","Clover Park","Cockle Bay","Conifer Grove"]
@@ -43,11 +43,10 @@ Starts_with_W = ["Wai o Taiki Bay","Waiake","Waiata Shores","Waikowhai","Waima",
 # Final code of Task 1 
 intro()
 rule()
-Rules_4 = input("Did you understand the rules of this Atlus game?")
-if Rules_4 == "no":
+rule_1()
+if rule_1() == "no":
     print(rule()) 
-    print(rule_1())
-
+    print(rule_2())
 else: 
     print()
 
