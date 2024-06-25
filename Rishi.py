@@ -7,6 +7,9 @@ def rule():
     Rule_1 = print("You have to tell suburb names only in Auckland District") 
     Rule_2 = print("You shouldn't repeat the same suburb name again") 
     Rule_3 = print("You should start the name with the ending letter of the previous word")
+def rule_1():
+    Rules_5 = input("Now, Did you understand the rules of this game?")
+    Rules_4 = input("Did you understand the rules of this Atlus game?")
 Starts_with_A = ["Albany","Alfriston","Arch Hill","Auckland CBD","Avondale"]
 Starts_with_B = ["Balmoral","Bayswater","Bayview","Beach Haven","Belmont","Birkdale","Birkenhead","Blockhouse Bay","Botany Downs","Botany","Browns Bay","Bucklands Beach","Burswood"]
 Starts_with_C = ["Campbells Bay","Castor Bay","Chatswood","Clendon Park","Clover Park","Cockle Bay","Conifer Grove"]
@@ -31,21 +34,14 @@ Starts_with_W = ["Wai o Taiki Bay","Waiake","Waiata Shores","Waikowhai","Waima",
 # Final code of Task 1 
 intro()
 rule()
-Rules_4 = input("Did you understand the rules of this Atlus game?")
-if Rules_4 == "no":
+if  "no":
     print(rule())
-    Rules_5 = input("Now, Did you understand the rules of this game?")
-    if Rules_5 == "no":
-        print(rule())
-    else:
-        Ask_User = input("Do you want to start the game ?")
 else: 
-    print() 
-
-
+    Ask_User = input("Do you want to start the game ?")
 # The main games starts from here
 # Task 2 
 if Ask_User == "no":
     print(Starts_with_A[3]) 
 else: 
     input("Ok, Please start !")
+# Task 3 
