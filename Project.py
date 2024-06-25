@@ -1,4 +1,5 @@
 # Defining Greetings and Rules of the Alus game 
+# Task done by Rishikesh. only intro was edited by neel
 def intro():
     name = input ("What's your name?")
     print("Hello", name, "Welcome to this Atlas game")
@@ -8,7 +9,7 @@ def rule():
     Rule_1 = print("You have to tell suburb names only in Auckland District") 
     Rule_2 = print("You shouldn't repeat the same suburb name again") 
     Rule_3 = print("You should start the name with the ending letter of the previous word")
-
+# Task done by Neel
 def getLives():
     while True:
         lives = input("How many lives do you want to do this game?")
@@ -20,6 +21,7 @@ def getLives():
                 print("Please pick a number for this question.")
         except:
             print("Please input a number(The reason you are seeing this message is because you didn't input a number for this question the first time around).")
+# done by neel. only multi list by rishikesh
 Starts_with_A = ["Albany","Alfriston","Arch Hill","Auckland CBD","Avondale"]
 Starts_with_B = ["Balmoral","Bayswater","Bayview","Beach Haven","Belmont","Birkdale","Birkenhead","Blockhouse Bay","Botany Downs","Botany","Browns Bay","Bucklands Beach","Burswood"]
 Starts_with_C = ["Campbells Bay","Castor Bay","Chatswood","Clendon Park","Clover Park","Cockle Bay","Conifer Grove"]
@@ -41,6 +43,7 @@ Starts_with_U = ["Unsworth Heights"]
 Starts_with_V = ["Viaduct Harbour"]
 Starts_with_W = ["Wai o Taiki Bay","Waiake","Waiata Shores","Waikowhai","Waima","Wairau Valley","Waterview","Wattle Downs","Wesley","West Harbour","Western Heights","Western Springs","Westfield","Westgate","Westmere","Weymouth","Whenuapai","Windsor Park","Wiri","Woodlands Park","Wynyard Quarter"]
 # Introduction to the user
+# Task done by Rishikesh
 intro()
 rule()
 getLives()
@@ -55,7 +58,10 @@ else:
     else:
         Ask_User = input("Do you want to start the game ?")
 # The main games starts from here 
+# Task done by Rishikesh
 if Ask_User == "no":
     print(Starts_with_A[3]) 
 else: 
     input("Ok, Please start !")
+# Conclusion 
+# Task done by neel
