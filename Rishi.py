@@ -32,15 +32,17 @@ Starts_with_W = ["Wai o Taiki Bay","Waiake","Waiata Shores","Waikowhai","Waima",
 intro()
 rule()
 Rules_4 = input("Did you understand the rules of this Atlus game?")
-if Rules_4 == "yes":
-    print("Let's start the game") 
-else: 
+if Rules_4 == "no":
     print(rule())
     Rules_5 = input("Now, Did you understand the rules of this game?")
     if Rules_5 == "no":
         print(rule())
     else:
         Ask_User = input("Do you want to start the game ?")
+else: 
+    print() 
+
+
 # The main games starts from here
 # Task 2 
 if Ask_User == "no":
