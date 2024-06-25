@@ -3,10 +3,12 @@ def intro():
     name = input ("What's your name?")
     print("Hello", name, "Welcome to this Atlas game")
     print("This Atlas Game asks you about places in the Auckland Dsitrict that start with the ending letter of a prompt word from the auckland district that the computer will give you.")
+
 def rule():
     Rule_1 = print("You have to tell suburb names only in Auckland District") 
     Rule_2 = print("You shouldn't repeat the same suburb name again") 
     Rule_3 = print("You should start the name with the ending letter of the previous word")
+
 def getLives():
     while True:
         lives = input("How many lives do you want to do this game?")
