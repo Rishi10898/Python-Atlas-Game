@@ -170,10 +170,6 @@ rule()
 getLives()        
 # The main games starts from here 
 # Task done by Rishikesh
-Ask_User = input("Do you want to start the game ?")
-if Ask_User == "no":
-    print(Starts_with_A[3]) 
-else: 
-    input("Ok, Please start !")
+
 # Conclusion 
 # Task done by neel
