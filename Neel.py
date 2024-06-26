@@ -176,16 +176,3 @@ Starts_with_W_and_ends_with_D_ = ["Westfield"]
 Starts_with_W_and_ends_with_E_ = ["Westgate","Westmere","Waiake"]
 Starts_with_W_and_ends_with_H_ = ["Weymouth"]
 Starts_with_W_and_ends_with_K_ = ["Windsor Park","Woodlands Park"]
-# Introduction to the user
-# Task done by Rishikesh
-intro()
-rule()
-getLives()
-# The main games starts from here 
-# Task done by Rishikesh
-if Ask_User == "no":
-    print(Starts_with_A[3]) 
-else: 
-    input("Ok, Please start !")
-# Conclusion 
-# Task done by neel
