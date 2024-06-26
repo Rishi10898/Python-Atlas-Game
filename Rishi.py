@@ -13,7 +13,7 @@ def rule_1():
         print(rule()) 
     else:
         Rules_4 == "yes"
-        print(rule())    
+        print()    
 Starts_with_A = ["Albany","Alfriston","Arch Hill","Auckland CBD","Avondale"]
 Starts_with_B = ["Balmoral","Bayswater","Bayview","Beach Haven","Belmont","Birkdale","Birkenhead","Blockhouse Bay","Botany Downs","Botany","Browns Bay","Bucklands Beach","Burswood"]
 Starts_with_C = ["Campbells Bay","Castor Bay","Chatswood","Clendon Park","Clover Park","Cockle Bay","Conifer Grove"]
