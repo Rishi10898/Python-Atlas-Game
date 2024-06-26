@@ -9,15 +9,16 @@ def rule():
     Rule_3 = print("You should start the name with the ending letter of the previous word")
 def rule_1():
     Rules_4 = input("Did you understand the rules of this Atlus game?")
-    if Rules_4 == "no":
+    if Rules_4 == "yes" or " yes" or "YES" or " YES":
+        print("That's good ! You have a good memory") 
+    elif Rules_4 == "":
+        print("Did you understand the rules?")
+    else: 
         print(rule()) 
-    else:
-        Rules_4 == "yes"
-        print()    
 Starts_with_A_and_ends_with_Y = ["Albany"]
 Starts_with_A_and_ends_with_N = ["Alfriston"]
 Starts_with_A_and_ends_with_L = ["Arch Hill"]
-Starts_with_A_and_ends_with_D = ["Auckland CBD"]
+Starts_with_A_and_ends_with_D = "Auckland CBD"
 Starts_with_A_and_ends_with_E = ["Avondale"]
 
 Starts_with_B_and_ends_with_L8_ = ["Balmoral"]
@@ -85,16 +86,16 @@ Starts_with_L_and_ends_with_Y_ = ["Long Bay"]
 Starts_with_L_and_ends_with_S_ = ["Lucas Heights"]
 Starts_with_L_and_ends_with_D_ = ["Lynfield"]
 
-Starts_with_M_and_ends_with__ = ["Mairangi Bay","Mechanics Bay","Mellons Bay","Massey","Mission Bay","Murrays Bay"]
-Starts_with_M_and_ends_with__ = ["Mangere","Mangere Bridge","Middlemore","Morningside"]
-Starts_with_M_and_ends_with__ = ["Mangere East","Mount Albert"]
-Starts_with_M_and_ends_with__ = ["Manukau"]
-Starts_with_M_and_ends_with__ = ["Manurewa"]
-Starts_with_M_and_ends_with__ = ["McLaren Park","Meadowbank"]
-Starts_with_M_and_ends_with__ = ["Milford"]
-Starts_with_M_and_ends_with__ = ["Mission Heights"]
-Starts_with_M_and_ends_with__ = ["Mount Eden","Mount Wellington"]
-Starts_with_M_and_ends_with__ = ["Mount Roskill"]
+Starts_with_M_and_ends_with_Y_ = ["Mairangi Bay","Mechanics Bay","Mellons Bay","Massey","Mission Bay","Murrays Bay"]
+Starts_with_M_and_ends_with_E_ = ["Mangere","Mangere Bridge","Middlemore","Morningside"]
+Starts_with_M_and_ends_with_T_ = ["Mangere East","Mount Albert"]
+Starts_with_M_and_ends_with_U_ = ["Manukau"]
+Starts_with_M_and_ends_with_A_ = ["Manurewa"]
+Starts_with_M_and_ends_with_K_ = ["McLaren Park","Meadowbank"]
+Starts_with_M_and_ends_with_D_ = ["Milford"]
+Starts_with_M_and_ends_with_S_ = ["Mission Heights"]
+Starts_with_M_and_ends_with_N_ = ["Mount Eden","Mount Wellington"]
+Starts_with_M_and_ends_with_L_ = ["Mount Roskill"]
 
 Starts_with_N_and_ends_with_K_ = ["Narrow Neck","Northpark"]
 Starts_with_N_and_ends_with_R_ = ["New Windsor"]
@@ -134,37 +135,38 @@ Starts_with_S_and_ends_with_S_ = ["St Johns""St Lukes","Stonefields","Sunnyhills
 Starts_with_S_and_ends_with_K_ = ["Sunnynook"]
 Starts_with_S_and_ends_with_T_ = ["Stanley Point"]
 
-Starts_with_T_and_ends_with_I_ = ["Takanini","Tamaki","Titirangi"]
-Starts_with_T_and_ends_with_H_ = ["Takapuna","Te Atatu Peninsula","Te Papapa"]
-Starts_with_T_and_ends_with_H_ = ["Te Atatu South"]
-Starts_with_T_and_ends_with_S_ = ["Three Kings","Torbay Heights","Totara Heights"]
-Starts_with_T_and_ends_with_Y_ = ["Torbay"]
-Starts_with_T_and_ends_with_E_ = ["Totara Vale"]
+Starts_with_T_and_ends_with_I_ = "Takanini","Tamaki","Titirangi"
+Starts_with_T_and_ends_with_H_ = "Takapuna","Te Atatu Peninsula","Te Papapa"
+Starts_with_T_and_ends_with_H_ = "Te Atatu South"
+Starts_with_T_and_ends_with_S_ = "Three Kings","Torbay Heights","Totara Heights"
+Starts_with_T_and_ends_with_Y_ = "Torbay"
+Starts_with_T_and_ends_with_E_ = "Totara Vale"
 
-Starts_with_U_and_ends_with_S = ["Unsworth Heights"]
+Starts_with_U_and_ends_with_S = "Unsworth Heights"
 
-Starts_with_V_and_ends_with_R_ = ["Viaduct Harbour"]
+Starts_with_V_and_ends_with_R_ = "Viaduct Harbour"
 
-Starts_with_W_and_ends_with_Y_ = ["Wai o Taiki Bay","Wairau Valley","Wesley"]
-Starts_with_W_and_ends_with_S_ = ["Waiata Shores","Wattle Downs","Western Heights","Western Springs"]
-Starts_with_W_and_ends_with_A_ = ["Waima"]
-Starts_with_W_and_ends_with_I_ = ["Waikowhai","Whenuapai","Wiri"]
-Starts_with_W_and_ends_with_W_ = ["Waterview"]
-Starts_with_W_and_ends_with_R_ = ["West Harbour","Wynyard Quarter"]
-Starts_with_W_and_ends_with_D_ = ["Westfield"]
-Starts_with_W_and_ends_with_E_ = ["Westgate","Westmere","Waiake"]
-Starts_with_W_and_ends_with_H_ = ["Weymouth"]
-Starts_with_W_and_ends_with_K_ = ["Windsor Park","Woodlands Park"]
+Starts_with_W_and_ends_with_Y_ = "Wai o Taiki Bay","Wairau Valley","Wesley"
+Starts_with_W_and_ends_with_S_ = "Waiata Shores","Wattle Downs","Western Heights","Western Springs"
+Starts_with_W_and_ends_with_A_ = "Waima"
+Starts_with_W_and_ends_with_I_ = "Waikowhai","Whenuapai","Wiri"
+Starts_with_W_and_ends_with_W_ = "Waterview"
+Starts_with_W_and_ends_with_R_ = "West Harbour","Wynyard Quarter"
+Starts_with_W_and_ends_with_D_ = "Westfield"
+Starts_with_W_and_ends_with_E_ = "Westgate","Westmere","Waiake"
+Starts_with_W_and_ends_with_H_ = "Weymouth"
+Starts_with_W_and_ends_with_K_ = "Windsor Park","Woodlands Park"
 # Final code of Task 1 
 intro()
 rule()
 rule_1()
-# The main games starts from here
+# The main games starts from here and continues
 # Task 2 
 Ask_User = input("Do you want to start the game ?")
-if Ask_User ==" no" or "no" or "No" or " No" or "NO":
-    print(Starts_with_A[3]) 
-else: 
+if Ask_User == "yes" or " yes" or "YES" or " YES":
     input("Ok, Please start !")
+else: 
+    Ask_User == "no" or " no" or "NO" or " NO"
+    print(Starts_with_A_and_ends_with_D) 
 # Task 3 
 # Task 4
