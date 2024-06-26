@@ -168,7 +168,7 @@ Starts_with_W_and_ends_with_K_ = ["Windsor Park","Woodlands Park"]
 intro()
 rule()
 getLives()        
-# The main games starts from here 
+# The main games starts from here
 # Task done by Rishikesh
 
 # Conclusion 
