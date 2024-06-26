@@ -2,7 +2,7 @@
 # Task 1 
 def intro():
     Greet_1 = input ("What's your name?")
-    Greet_2 = input("Hi, Welcome.This is an Atlas Game only within Auckland Dsitrict") 
+    Greet_2 = print("Hi,", Greet_1, " Welcome.This is an Atlas Game only within Auckland Dsitrict")     
 def rule():
     Rule_1 = print("You have to tell suburb names only in Auckland District") 
     Rule_2 = print("You shouldn't repeat the same suburb name again") 
@@ -49,7 +49,6 @@ if rule_1() == "no":
     print(rule_2())
 else: 
     print()
-
 # The main games starts from here
 # Task 2 
 Ask_User = input("Do you want to start the game ?")
