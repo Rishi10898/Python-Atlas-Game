@@ -181,16 +181,6 @@ Starts_with_W_and_ends_with_K_ = ["Windsor Park","Woodlands Park"]
 intro()
 rule()
 getLives()
-Rules_4 = input("Did you understand the rules of this Atlus game?")
-if Rules_4 == "yes":
-    print("Let's start the game") 
-else: 
-    print(rule())
-    Rules_5 = input("Now, Did you understand the rules of this game?")
-    if Rules_5 == "no":
-        print(rule())
-    else:
-        Ask_User = input("Do you want to start the game ?")
 # The main games starts from here 
 # Task done by Rishikesh
 if Ask_User == "no":
