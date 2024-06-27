@@ -125,15 +125,15 @@ Starts_with_R_and_ends_with_E_ = ["Rosedale"]
 Starts_with_R_and_ends_with_Y_ = ["Rothesay Bay"]
 Starts_with_R_and_ends_with_S_ = ["Royal Heights"]
 
-Starts_with_S_and_ends_with_S_ = ["Saint Heliers"]
-Starts_with_S_and_ends_with_Y_ = ["Saint Marys Bay"]
-Starts_with_S_and_ends_with_M_ = ["Sandringham"]
-Starts_with_S_and_ends_with_K_ = ["Schnapper Rock","Shamrock Park","Shelly Park"]
-Starts_with_S_and_ends_with_E_ = ["Somerville","Sunnyvale"]
-Starts_with_S_and_ends_with_N_ = ["Southdown","Swanson"]
-Starts_with_S_and_ends_with_S_ = ["St Johns""St Lukes","Stonefields","Sunnyhills"]
-Starts_with_S_and_ends_with_K_ = ["Sunnynook"]
-Starts_with_S_and_ends_with_T_ = ["Stanley Point"]
+Starts_with_S_and_ends_with_S_ = "Saint Heliers"
+Starts_with_S_and_ends_with_Y_ = "Saint Marys Bay"
+Starts_with_S_and_ends_with_M_ = "Sandringham"
+Starts_with_S_and_ends_with_K_ = "Schnapper Rock","Shamrock Park","Shelly Park"]
+Starts_with_S_and_ends_with_E_ = "Somerville","Sunnyvale"]
+Starts_with_S_and_ends_with_N_ = "Southdown","Swanson"
+Starts_with_S_and_ends_with_S_ = "St Johns""St Lukes","Stonefields","Sunnyhills"
+Starts_with_S_and_ends_with_K_ = "Sunnynook"
+Starts_with_S_and_ends_with_T_ = "Stanley Point"
 
 Starts_with_T_and_ends_with_I_ = "Takanini","Tamaki","Titirangi"
 Starts_with_T_and_ends_with_H_ = "Takapuna","Te Atatu Peninsula","Te Papapa"
