@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 #Greetings and Rules of the Alus game 
 # Task 1 
 def intro():
