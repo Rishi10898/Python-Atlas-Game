@@ -9,16 +9,17 @@ def rule():
     Rule_3 = print("You should start the name with the ending letter of the previous word")
 def rule_1():
     Rules_4 = input("Did you understand the rules of this Atlus game?")
-    if Rules_4 == "yes":
+    if Rules_4 == "yes" or " yes":
         print("That's good ! You have a good memory") 
-    else: 
+    else:
+        "no" or " no"  
         print(rule())
         Rules_5 = input("Did you understand the rules?")
-        if Rules_5 == "yes":
+        if Rules_5 == "yes" or " yes":
             print("Good!")
         else:
             print(rule()) 
-Starts_with_A_and_ends_with_Y = "Albany"
+Starts_with_A_and_ends_with_Y = "Albany" 
 Starts_with_A_and_ends_with_N = "Alfriston"
 Starts_with_A_and_ends_with_L = "Arch Hill"
 Starts_with_A_and_ends_with_D = "Auckland CBD"
