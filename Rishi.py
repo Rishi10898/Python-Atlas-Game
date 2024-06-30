@@ -11,8 +11,7 @@ def rule_1():
     Rules_4 = input("Did you understand the rules of this Atlus game?")
     if Rules_4 == "yes" or " yes":
         print("That's good ! You have a good memory") 
-    else:
-        "no" or " no"  
+    else "no" or " no": 
         print(rule())
         Rules_5 = input("Did you understand the rules?")
         if Rules_5 == "yes" or " yes":
