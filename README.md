@@ -1,6 +1,6 @@
-# Python Atlas Game
-This games is called as the ATLUS gAME.
-The rule of this game are:-
+# Python Atlus Game
+This game is called as the Atlus Game.
+The rules of this game are:-
 To only tell the names of Suburbs only in Auckland District.
 To start with the last letter of the previous word
 To not repeat any word.

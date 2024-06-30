@@ -4,11 +4,25 @@ def intro():
     name = input ("What's your name?")
     print("Hello", name, "Welcome to this Atlas game")
     print("This Atlas Game asks you about places in the Auckland Dsitrict that start with the ending letter of a prompt word from the auckland district that the computer will give you.")
-
+# Done by rishikesh
+def intro():
+    Greet_1 = input ("What's your name?")
+    Greet_2 = print("Hi,", Greet_1, " Welcome.This is an Atlas Game only within Auckland Dsitrict") 
 def rule():
     Rule_1 = print("You have to tell suburb names only in Auckland District") 
     Rule_2 = print("You shouldn't repeat the same suburb name again") 
     Rule_3 = print("You should start the name with the ending letter of the previous word")
+def rule_1():
+    Rules_4 = input("Did you understand the rules of this Atlus game?")
+    if Rules_4 == "yes" or " yes":
+        print("That's good ! You have a good memory") 
+    else: 
+        print(rule())
+        Rules_5 = input("Did you understand the rules?")
+        if Rules_5 == "yes" or " yes":
+            print("Good!")
+        else:
+            print(rule()) 
 # Task done by Neel
 def getLives():
     while True:
@@ -170,6 +184,11 @@ rule()
 getLives()        
 # The main games starts from here
 # Task done by Rishikesh
-
+# Task 2 
+Ask_User = input("Do you want to start the game ?")
+if Ask_User == "yes":
+    input("Ok, Please start !")
+else: 
+    print(Starts_with_A_and_ends_with_D) 
 # Conclusion 
 # Task done by neel
