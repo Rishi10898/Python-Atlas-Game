@@ -1,87 +1,231 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Tag Game</title>
-    <style>
-        canvas { border: 1px solid black; }
-    </style>
+<meta charset="UTF-8" />
+<title>Tag Game</title>
+<style>
+  body { margin: 0; background: #f0f0f0; }
+  canvas { background: #222; display: block; margin: auto; }
+  #scoreboard { text-align: center; font-family: sans-serif; margin: 8px; }
+</style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+<div id="scoreboard"></div>
+<canvas id="gameCanvas" width="600" height="400"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-        // Player and AI bot objects
-        const players = [
-            { x: 100, y: 100, color: 'blue', controls: { up: 'w', left: 'a', right: 'd' }, isAI: false },
-            { x: 200, y: 200, color: 'red', controls: { up: 'ArrowUp', left: 'ArrowLeft', right: 'ArrowRight' }, isAI: true },
-            { x: 300, y: 300, color: 'green', controls: { up: 'i', left: 'j', right: 'l' }, isAI: true },
-            { x: 400, y: 400, color: 'yellow', controls: { up: 't', left: 'f', right: 'h' }, isAI: true }
-        ];
+const playerSize = 20;
+const speeds = { human: 3, ai: 2.5 };
+const keysPressed = {};
+const NUM_LEVELS = 3;
+let currentLevel = 0;
+let gameRunning = false;
 
-        let itPlayer = 0; // Index of the player who is "it"
+const levels = [
+  { obstacles: [{x:150,y:100,w:300,h:20}, {x:100,y:250,w:400,h:20}], pads: [{x:50,y:50,w:40,h:40}], teleports: [{x:500,y:350}] },
+  { obstacles: [{x:200,y:50,w:20,h:300}], pads: [{x:250,y:350,w:30,h:30}], teleports: [{x:50,y:350}] },
+  { obstacles: [{x:100,y:150,w:400,h:30}], pads: [{x:450,y:50,w:35,h:35}], teleports: [{x:550,y:10}] }
+];
 
-        // Movement speed
-        const speed = 5;
+const playerColors = ['red','blue','green','yellow'];
+const controls = [
+  {up:'w', left:'a', right:'d'},
+  {up:'ArrowUp', left:'ArrowLeft', right:'ArrowRight'},
+  {up:'i', left:'j', right:'l'},
+  {up:'t', left:'f', right:'h'}
+];
 
-        // Draw all players
-        function drawPlayers() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            players.forEach((player, index) => {
-                ctx.fillStyle = player.color;
-                ctx.fillRect(player.x, player.y, 20, 20);
-                if (index === itPlayer) {
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(player.x + 5, player.y - 10, 10, 10); // Arrow above "it" player
-                }
-            });
-        }
+class Player {
+  constructor(id, isAI) {
+    this.id = id;
+    this.x = 50 + id*50;
+    this.y = 50;
+    this.width = playerSize;
+    this.height = playerSize;
+    this.color = playerColors[id];
+    this.isAI = isAI;
+    this.isIt = false;
+    this.teleportUsed = false;
+    this.score = 0;
+    this.velY = 0;
+    this.jumpPower = 5;
+    this.onGround = false;
+  }
+  
+  draw() {
+    ctx.fillStyle = this.color;
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    if(this.isIt) {
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.moveTo(this.x + this.width/2, this.y - 10);
+      ctx.lineTo(this.x + this.width/2 + 5, this.y);
+      ctx.lineTo(this.x + this.width/2 - 5, this.y);
+      ctx.fill();
+    }
+  }
 
-        // Handle keyboard input
-        document.addEventListener('keydown', (e) => {
-            players.forEach((player, index) => {
-                if (!player.isAI) {
-                    if (e.key === player.controls.up) player.y -= speed;
-                    if (e.key === player.controls.left) player.x -= speed;
-                    if (e.key === player.controls.right) player.x += speed;
-                }
-            });
-        });
+  update() {
+    if(this.isAI) {
+      this.aiMove();
+    } else {
+      this.handleInput();
+    }
+    this.applyPhysics();
+    this.checkCollision();
+  }
 
-        // Simple AI bot movement
-        function moveAI() {
-            players.forEach((player, index) => {
-                if (player.isAI) {
-                    // Simple chase logic: move towards the "it" player
-                    if (index !== itPlayer) {
-                        if (player.x < players[itPlayer].x) player.x += speed;
-                        if (player.x > players[itPlayer].x) player.x -= speed;
-                        if (player.y < players[itPlayer].y) player.y += speed;
-                        if (player.y > players[itPlayer].y) player.y -= speed;
-                    }
-                }
-            });
-        }
+  handleInput() {
+    const ctrl = controls[this.id];
+    if(keysPressed[ctrl.left]) this.x -= speeds.human;
+    if(keysPressed[ctrl.right]) this.x += speeds.human;
+    if(keysPressed[ctrl.up] && this.onGround) {
+      this.velY = -this.jumpPower;
+      this.onGround = false;
+    }
+  }
 
-        // Check for tagging
-        function checkTag() {
-            players.forEach((player, index) => {
-                if (index !== itPlayer && Math.abs(player.x - players[itPlayer].x) < 20 && Math.abs(player.y - players[itPlayer].y) < 20) {
-                    itPlayer = index;
-                }
-            });
-        }
+  aiMove() {
+    // Simple AI: Move randomly or chase/evade the "it" player
+    let itPlayer = players.find(p => p.isIt && p !== this);
+    if(!itPlayer) return;
+    // If AI is "it", chase closest player
+    if(this.isIt) {
+      if(this.x < itPlayer.x) this.x += speeds.ai;
+      if(this.x > itPlayer.x) this.x -= speeds.ai;
+    } else {
+      // If AI not "it", move away from "it" player
+      if(this.x < itPlayer.x) this.x -= speeds.ai;
+      if(this.x > itPlayer.x) this.x += speeds.ai;
+    }
+  }
 
-        // Game loop
-        function gameLoop() {
-            moveAI();
-            checkTag();
-            drawPlayers();
-            requestAnimationFrame(gameLoop);
-        }
+  applyPhysics() {
+    this.velY += 0.3; // gravity
+    this.y += this.velY;
+    if(this.y + this.height >= canvas.height - 10) {
+      this.y = canvas.height - 10 - this.height;
+      this.velY = 0;
+      this.onGround = true;
+    }
+  }
 
-        gameLoop();
-    </script>
+  checkCollision() {
+    const level = levels[currentLevel];
+    // collide with obstacles
+    for(const obs of level.obstacles) {
+      if(this.x < obs.x + obs.w &&
+         this.x + this.width > obs.x &&
+         this.y < obs.y + obs.h &&
+         this.y + this.height > obs.y) {
+           // Simple collision resolution: push back
+           if(this.x < obs.x) this.x = obs.x - this.width;
+           else this.x = obs.x + obs.w;
+      }
+    }
+    // collide with bounce pads
+    for(const pad of level.pads) {
+      if(this.x < pad.x + pad.w &&
+         this.x + this.width > pad.x &&
+         this.y < pad.y + pad.h &&
+         this.y + this.height > pad.y) {
+           if(this.onGround) {
+             this.velY = -this.jumpPower * 1.5;
+             this.onGround = false;
+           }
+      }
+    }
+    // collide with teleport
+    for(const tp of level.teleports) {
+      if(!this.teleportUsed &&
+         this.x < tp.x + 20 &&
+         this.x + this.width > tp.x &&
+         this.y < tp.y + 20 &&
+         this.y + this.height > tp.y) {
+           this.x = 50;
+           this.y = 50;
+           this.teleportUsed = true;
+           // optional: mark teleport as used visually here
+      }
+    }
+  }
+}
+
+const players = [];
+let itPlayerIdx = 0;
+
+function initGame(numHumanPlayers=1) {
+  players.length = 0;
+  for(let i=0; i<4; i++) {
+    const isAI = i >= numHumanPlayers;
+    players.push(new Player(i, isAI));
+  }
+  itPlayerIdx = 0;
+  players[itPlayerIdx].isIt = true;
+  gameRunning = true;
+  updateScoreboard();
+}
+
+function updateScoreboard() {
+  const scoreboard = document.getElementById('scoreboard');
+  scoreboard.innerHTML = players.map(p =>
+    `<span style="color:${p.color};">${p.isIt ? '🔴' : ''} Player ${p.id+1} Score: ${p.score}</span>`
+  ).join(' | ');
+}
+
+function handleTagging() {
+  const itPlayer = players[itPlayerIdx];
+  for(let i=0; i<players.length; i++) {
+    if(i === itPlayerIdx) continue;
+    const p = players[i];
+    if(rectIntersect(itPlayer, p)) {
+      itPlayer.isIt = false;
+      p.isIt = true;
+      itPlayerIdx = i;
+      itPlayer.score++;
+      updateScoreboard();
+      break;
+    }
+  }
+}
+
+function rectIntersect(a,b) {
+  return a.x < b.x + b.width && a.x + a.width > b.x &&
+         a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawLevel();
+  players.forEach(p => { p.update(); p.draw(); });
+  handleTagging();
+  if(gameRunning) requestAnimationFrame(gameLoop);
+}
+
+function drawLevel() {
+  const level = levels[currentLevel];
+  ctx.fillStyle = 'gray';
+  level.obstacles.forEach(obs => ctx.fillRect(obs.x, obs.y, obs.w, obs.h));
+  ctx.fillStyle = 'lime';
+  level.pads.forEach(pad => ctx.fillRect(pad.x, pad.y, pad.w, pad.h));
+  ctx.fillStyle = 'cyan';
+  level.teleports.forEach(tp => ctx.fillRect(tp.x, tp.y, 20, 20));
+}
+
+// Input handlers
+window.addEventListener('keydown', (e) => {
+  keysPressed[e.key] = true;
+});
+window.addEventListener('keyup', (e) => {
+  keysPressed[e.key] = false;
+});
+
+// Initialize and start game
+initGame(1);
+gameLoop();
+
+</script>
 </body>
 </html>
