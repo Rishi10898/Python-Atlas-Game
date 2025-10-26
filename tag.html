@@ -3,89 +3,126 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAG Game Clone</title>
+<title>TAG Game Advanced</title>
 <style>
   body { margin: 0; font-family: sans-serif; background: #111; color: #fff; display: flex; flex-direction: column; align-items: center; }
   canvas { border-radius: 10px; margin-top: 10px; }
-  #scoreboard { display: flex; justify-content: center; gap: 20px; margin-top: 10px; font-size: 18px; }
+  #menu { display: flex; gap: 10px; margin-top: 10px; }
+  select, button { font-size: 16px; padding: 5px; border-radius: 5px; }
+  #scoreboard { display: flex; justify-content: center; gap: 15px; margin-top: 10px; font-size: 16px; }
   .playerScore { padding: 5px 10px; border-radius: 5px; }
-  .red { background: red; } 
-  .blue { background: blue; } 
-  .green { background: green; } 
-  .purple { background: purple; } 
-  .yellow { background: yellow; color: #000; }
-  #mapSelect { margin-top: 10px; font-size: 16px; padding: 5px; border-radius: 5px; }
+  .yellow { background: yellow; color: black; }
 </style>
 </head>
 <body>
 <h1>TAG Game Clone</h1>
-<select id="mapSelect">
-  <option value="forest">Forest</option>
-  <option value="desert">Desert</option>
-  <option value="snow">Snow</option>
-</select>
-<div id="scoreboard">
-  <div id="score1" class="playerScore red">Red: 0</div>
-  <div id="score2" class="playerScore blue">Blue: 0</div>
-  <div id="score3" class="playerScore green">Green: 0</div>
-  <div id="score4" class="playerScore purple">Purple: 0</div>
+<div id="menu">
+  <select id="playerCount">
+    <option value="1">1 Player + AI</option>
+    <option value="2">2 Players</option>
+    <option value="3">3 Players</option>
+    <option value="4">4 Players</option>
+  </select>
+  <select id="mapSelect">
+    <option value="forest">Forest</option>
+    <option value="desert">Desert</option>
+    <option value="snow">Snow</option>
+    <option value="city">City</option>
+    <option value="rural">Rural</option>
+    <option value="beach">Beach</option>
+  </select>
+  <button id="startBtn">Start Game</button>
 </div>
+<div id="scoreboard"></div>
 <canvas id="game" width="800" height="600"></canvas>
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-
+let players = [];
+let keys = {};
 let currentMap = 'forest';
+let playerCount = 1;
+let gameStarted = false;
 
-document.getElementById('mapSelect').addEventListener('change', (e)=>{
-  currentMap = e.target.value;
-});
+document.getElementById('mapSelect').addEventListener('change',(e)=>currentMap=e.target.value);
+document.getElementById('playerCount').addEventListener('change',(e)=>playerCount=parseInt(e.target.value));
+document.getElementById('startBtn').addEventListener('click', initGame);
 
-// Players
-const players = [
-  { x: 50, y: 50, color: 'red', up:'w', down:'s', left:'a', right:'d', speed: 4, isIt: true, score: 0, teleport: 3 },
-  { x: 750, y: 50, color: 'blue', up:'ArrowUp', down:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', speed: 4, isIt: false, score: 0, teleport: 3 },
-  { x: 50, y: 550, color: 'green', up:'i', down:'k', left:'j', right:'l', speed: 4, isIt: false, score: 0, teleport: 3 },
-  { x: 750, y: 550, color: 'purple', up:'t', down:'g', left:'f', right:'h', speed: 4, isIt: false, score: 0, teleport: 3 }
-];
+document.addEventListener('keydown', e=> keys[e.key.toLowerCase()] = true);
+document.addEventListener('keyup', e=> keys[e.key.toLowerCase()] = false);
 
-const keys = {};
-document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-
-// Teleport keys: Q, M, U, R
 const teleportKeys = ['q','m','u','r'];
 
-function update() {
-  players.forEach((p, idx) => {
-    if(keys[p.up]) p.y -= p.speed;
-    if(keys[p.down]) p.y += p.speed;
-    if(keys[p.left]) p.x -= p.speed;
-    if(keys[p.right]) p.x += p.speed;
+const colors = ['red','blue','green','purple'];
+const startPositions = [
+  {x:50,y:50},{x:750,y:50},{x:50,y:550},{x:750,y:550}
+];
 
-    // Teleport
-    if(keys[teleportKeys[idx]] && p.teleport>0){
-      p.x = Math.random()*(canvas.width-40)+20;
-      p.y = Math.random()*(canvas.height-40)+20;
-      p.teleport--;
-      keys[teleportKeys[idx]] = false;
+function initGame(){
+  gameStarted=true;
+  players=[];
+  for(let i=0;i<playerCount;i++){
+    players.push({
+      x: startPositions[i].x,
+      y: startPositions[i].y,
+      color: colors[i],
+      speed:4,
+      isIt: i===0,
+      score:0,
+      teleport:3,
+      up:'w', down:'s', left:'a', right:'d' // will adjust below
+    });
+  }
+  // Adjust controls
+  if(playerCount>1) players[1].up='ArrowUp'; players[1].down='ArrowDown'; players[1].left='ArrowLeft'; players[1].right='ArrowRight';
+  if(playerCount>2) players[2].up='i'; players[2].down='k'; players[2].left='j'; players[2].right='l';
+  if(playerCount>3) players[3].up='t'; players[3].down='g'; players[3].left='f'; players[3].right='h';
+  
+  // AI player if single player
+  if(playerCount===1){
+    players.push({
+      x:750,y:550,color:'blue',speed:4,isIt:false,score:0,teleport:0,isAI:true
+    });
+  }
+  updateScores();
+}
+
+function update(){
+  if(!gameStarted) return;
+  players.forEach((p, idx)=>{
+    if(p.isAI){
+      // Simple AI chases player
+      let target = players[0]; 
+      let dx = target.x - p.x;
+      let dy = target.y - p.y;
+      let dist = Math.sqrt(dx*dx+dy*dy);
+      if(dist>0){ p.x += (dx/dist)*p.speed; p.y += (dy/dist)*p.speed; }
+    }else{
+      if(keys[p.up]) p.y-=p.speed;
+      if(keys[p.down]) p.y+=p.speed;
+      if(keys[p.left]) p.x-=p.speed;
+      if(keys[p.right]) p.x+=p.speed;
+      if(keys[teleportKeys[idx]] && p.teleport>0){
+        p.x=Math.random()*(canvas.width-40)+20;
+        p.y=Math.random()*(canvas.height-40)+20;
+        p.teleport--;
+        keys[teleportKeys[idx]]=false;
+      }
     }
-
-    // Keep inside canvas
-    p.x = Math.max(20, Math.min(canvas.width - 20, p.x));
-    p.y = Math.max(20, Math.min(canvas.height - 20, p.y));
+    p.x=Math.max(20,Math.min(canvas.width-20,p.x));
+    p.y=Math.max(20,Math.min(canvas.height-20,p.y));
   });
 
   // Tag logic
-  const itPlayer = players.find(p => p.isIt);
-  players.forEach(p => {
-    if(p !== itPlayer){
+  const itPlayer = players.find(p=>p.isIt);
+  players.forEach(p=>{
+    if(p!==itPlayer){
       const dx = itPlayer.x - p.x;
       const dy = itPlayer.y - p.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if(dist < 30){
-        itPlayer.isIt = false;
-        p.isIt = true;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if(dist<30){
+        itPlayer.isIt=false;
+        p.isIt=true;
         p.score++;
         updateScores();
       }
@@ -94,30 +131,40 @@ function update() {
 }
 
 function updateScores(){
+  const sb = document.getElementById('scoreboard');
+  sb.innerHTML='';
   players.forEach((p,i)=>{
-    const el = document.getElementById('score'+(i+1));
-    el.textContent = `${capitalize(p.color)}: ${p.score} (${p.teleport} TP)`;
-    el.className = `playerScore ${p.isIt?'yellow':p.color}`;
+    const div = document.createElement('div');
+    div.className='playerScore '+(p.isIt?'yellow':p.color);
+    div.textContent=`${capitalize(p.color)}: ${p.score} (${p.teleport} TP)`;
+    sb.appendChild(div);
   });
 }
 
-function capitalize(str){ return str.charAt(0).toUpperCase() + str.slice(1); }
+function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 
 function drawMap(){
-  if(currentMap==='forest') ctx.fillStyle='#228B22';
-  if(currentMap==='desert') ctx.fillStyle='#DEB887';
-  if(currentMap==='snow') ctx.fillStyle='#ADD8E6';
+  let grd;
+  switch(currentMap){
+    case 'forest': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#4CAF50'); grd.addColorStop(1,'#2E7D32'); break;
+    case 'desert': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#FFD54F'); grd.addColorStop(1,'#FFB300'); break;
+    case 'snow': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#E0F7FA'); grd.addColorStop(1,'#B2EBF2'); break;
+    case 'city': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#90A4AE'); grd.addColorStop(1,'#607D8B'); break;
+    case 'rural': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#A5D6A7'); grd.addColorStop(1,'#66BB6A'); break;
+    case 'beach': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#FFE082'); grd.addColorStop(1,'#FFCA28'); break;
+  }
+  ctx.fillStyle=grd;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
 function drawPlayers(){
   players.forEach(p=>{
-    ctx.fillStyle = p.isIt?'yellow':p.color;
+    ctx.fillStyle=p.isIt?'yellow':p.color;
     ctx.beginPath();
     ctx.arc(p.x,p.y,20,0,Math.PI*2);
     ctx.fill();
-    // Face
-    ctx.fillStyle = '#000';
+    // face
+    ctx.fillStyle='#000';
     ctx.beginPath();
     ctx.arc(p.x-7,p.y-5,3,0,Math.PI*2);
     ctx.arc(p.x+7,p.y-5,3,0,Math.PI*2);
@@ -129,9 +176,11 @@ function drawPlayers(){
 }
 
 function gameLoop(){
-  drawMap();
-  update();
-  drawPlayers();
+  if(gameStarted){
+    drawMap();
+    update();
+    drawPlayers();
+  }
   requestAnimationFrame(gameLoop);
 }
 
