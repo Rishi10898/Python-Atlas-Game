@@ -1,190 +1,330 @@
+```html
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAG Game Advanced</title>
-<style>
-  body { margin: 0; font-family: sans-serif; background: #111; color: #fff; display: flex; flex-direction: column; align-items: center; }
-  canvas { border-radius: 10px; margin-top: 10px; }
-  #menu { display: flex; gap: 10px; margin-top: 10px; }
-  select, button { font-size: 16px; padding: 5px; border-radius: 5px; }
-  #scoreboard { display: flex; justify-content: center; gap: 15px; margin-top: 10px; font-size: 16px; }
-  .playerScore { padding: 5px 10px; border-radius: 5px; }
-  .yellow { background: yellow; color: black; }
-</style>
+    <meta charset="utf-8">
+    <title>Tag Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <style>
+        body { margin: 0; }
+    </style>
 </head>
 <body>
-<h1>TAG Game Clone</h1>
-<div id="menu">
-  <select id="playerCount">
-    <option value="1">1 Player + AI</option>
-    <option value="2">2 Players</option>
-    <option value="3">3 Players</option>
-    <option value="4">4 Players</option>
-  </select>
-  <select id="mapSelect">
-    <option value="forest">Forest</option>
-    <option value="desert">Desert</option>
-    <option value="snow">Snow</option>
-    <option value="city">City</option>
-    <option value="rural">Rural</option>
-    <option value="beach">Beach</option>
-  </select>
-  <button id="startBtn">Start Game</button>
-</div>
-<div id="scoreboard"></div>
-<canvas id="game" width="800" height="600"></canvas>
-<script>
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-let players = [];
-let keys = {};
-let currentMap = 'forest';
-let playerCount = 1;
-let gameStarted = false;
+    <script>
+        // Assume assets are in 'assets/' folder: player1.png, player2.png, etc., platform.png, background_forest.jpg, etc.
+        // Sounds: tag.mp3, teleport.mp3, music_forest.mp3, etc.
 
-document.getElementById('mapSelect').addEventListener('change',(e)=>currentMap=e.target.value);
-document.getElementById('playerCount').addEventListener('change',(e)=>playerCount=parseInt(e.target.value));
-document.getElementById('startBtn').addEventListener('click', initGame);
+        class MenuScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'MenuScene' });
+            }
 
-document.addEventListener('keydown', e=> keys[e.key.toLowerCase()] = true);
-document.addEventListener('keyup', e=> keys[e.key.toLowerCase()] = false);
+            create() {
+                this.add.text(400, 100, 'Tag Game', { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
+                
+                // Number of players selection
+                this.add.text(400, 200, 'Number of Players:', { fontSize: '24px', fill: '#fff' }).setOrigin(0.5);
+                let playersButtons = [];
+                for (let i = 1; i <= 4; i++) {
+                    let btn = this.add.text(300 + i * 50, 250, i.toString(), { fontSize: '24px', fill: '#fff' }).setOrigin(0.5).setInteractive();
+                    btn.on('pointerdown', () => this.selectPlayers(i));
+                    playersButtons.push(btn);
+                }
+                
+                // Level/Theme selection
+                this.add.text(400, 300, 'Select Theme:', { fontSize: '24px', fill: '#fff' }).setOrigin(0.5);
+                const themes = ['forest', 'city', 'beach']; // 3 levels/themes
+                let themeButtons = [];
+                themes.forEach((theme, index) => {
+                    let btn = this.add.text(300 + (index + 1) * 100, 350, theme.charAt(0).toUpperCase() + theme.slice(1), { fontSize: '24px', fill: '#fff' }).setOrigin(0.5).setInteractive();
+                    btn.on('pointerdown', () => this.selectTheme(theme));
+                    themeButtons.push(btn);
+                });
+                
+                // Music selection
+                this.add.text(400, 400, 'Select Music:', { fontSize: '24px', fill: '#fff' }).setOrigin(0.5);
+                const musics = ['theme1', 'theme2', 'theme3']; // Assume different music files
+                let musicButtons = [];
+                musics.forEach((music, index) => {
+                    let btn = this.add.text(300 + (index + 1) * 100, 450, music, { fontSize: '24px', fill: '#fff' }).setOrigin(0.5).setInteractive();
+                    btn.on('pointerdown', () => this.selectMusic(music));
+                    musicButtons.push(btn);
+                });
+                
+                // Start button
+                let startBtn = this.add.text(400, 550, 'Start Game', { fontSize: '32px', fill: '#fff' }).setOrigin(0.5).setInteractive();
+                startBtn.on('pointerdown', () => this.startGame());
+                
+                // Default selections
+                this.selectedPlayers = 2;
+                this.selectedTheme = 'forest';
+                this.selectedMusic = 'theme1';
+            }
 
-const teleportKeys = ['q','m','u','r'];
+            selectPlayers(num) {
+                this.selectedPlayers = num;
+                // Update UI if needed
+            }
 
-const colors = ['red','blue','green','purple'];
-const startPositions = [
-  {x:50,y:50},{x:750,y:50},{x:50,y:550},{x:750,y:550}
-];
+            selectTheme(theme) {
+                this.selectedTheme = theme;
+            }
 
-function initGame(){
-  gameStarted=true;
-  players=[];
-  for(let i=0;i<playerCount;i++){
-    players.push({
-      x: startPositions[i].x,
-      y: startPositions[i].y,
-      color: colors[i],
-      speed:4,
-      isIt: i===0,
-      score:0,
-      teleport:3,
-      up:'w', down:'s', left:'a', right:'d' // will adjust below
-    });
-  }
-  // Adjust controls
-  if(playerCount>1) players[1].up='ArrowUp'; players[1].down='ArrowDown'; players[1].left='ArrowLeft'; players[1].right='ArrowRight';
-  if(playerCount>2) players[2].up='i'; players[2].down='k'; players[2].left='j'; players[2].right='l';
-  if(playerCount>3) players[3].up='t'; players[3].down='g'; players[3].left='f'; players[3].right='h';
-  
-  // AI player if single player
-  if(playerCount===1){
-    players.push({
-      x:750,y:550,color:'blue',speed:4,isIt:false,score:0,teleport:0,isAI:true
-    });
-  }
-  updateScores();
-}
+            selectMusic(music) {
+                this.selectedMusic = music;
+            }
 
-function update(){
-  if(!gameStarted) return;
-  players.forEach((p, idx)=>{
-    if(p.isAI){
-      // Simple AI chases player
-      let target = players[0]; 
-      let dx = target.x - p.x;
-      let dy = target.y - p.y;
-      let dist = Math.sqrt(dx*dx+dy*dy);
-      if(dist>0){ p.x += (dx/dist)*p.speed; p.y += (dy/dist)*p.speed; }
-    }else{
-      if(keys[p.up]) p.y-=p.speed;
-      if(keys[p.down]) p.y+=p.speed;
-      if(keys[p.left]) p.x-=p.speed;
-      if(keys[p.right]) p.x+=p.speed;
-      if(keys[teleportKeys[idx]] && p.teleport>0){
-        p.x=Math.random()*(canvas.width-40)+20;
-        p.y=Math.random()*(canvas.height-40)+20;
-        p.teleport--;
-        keys[teleportKeys[idx]]=false;
-      }
-    }
-    p.x=Math.max(20,Math.min(canvas.width-20,p.x));
-    p.y=Math.max(20,Math.min(canvas.height-20,p.y));
-  });
+            startGame() {
+                this.scene.start('GameScene', { players: this.selectedPlayers, theme: this.selectedTheme, music: this.selectedMusic });
+            }
+        }
 
-  // Tag logic
-  const itPlayer = players.find(p=>p.isIt);
-  players.forEach(p=>{
-    if(p!==itPlayer){
-      const dx = itPlayer.x - p.x;
-      const dy = itPlayer.y - p.y;
-      const dist = Math.sqrt(dx*dx+dy*dy);
-      if(dist<30){
-        itPlayer.isIt=false;
-        p.isIt=true;
-        p.score++;
-        updateScores();
-      }
-    }
-  });
-}
+        class GameScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'GameScene' });
+            }
 
-function updateScores(){
-  const sb = document.getElementById('scoreboard');
-  sb.innerHTML='';
-  players.forEach((p,i)=>{
-    const div = document.createElement('div');
-    div.className='playerScore '+(p.isIt?'yellow':p.color);
-    div.textContent=`${capitalize(p.color)}: ${p.score} (${p.teleport} TP)`;
-    sb.appendChild(div);
-  });
-}
+            init(data) {
+                this.numPlayers = data.players;
+                this.theme = data.theme;
+                this.music = data.music;
+                this.score = Array(this.numPlayers).fill(0); // Tags made
+                this.bots = this.numPlayers === 1 ? 1 : 0; // Add 1 bot for single player
+                this.totalPlayers = this.numPlayers + this.bots;
+            }
 
-function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+            preload() {
+                // Load assets based on theme
+                this.load.image('background', `assets/background_${this.theme}.jpg`);
+                this.load.image('platform', 'assets/platform.png');
+                this.load.image('player', 'assets/player.png');
+                this.load.image('bot', 'assets/bot.png');
+                this.load.image('arrow', 'assets/arrow.png');
+                this.load.image('bounce', 'assets/bounce.png');
+                this.load.image('teleport', 'assets/teleport.png');
+                
+                // Sounds
+                this.load.audio('tagSound', 'assets/tag.mp3');
+                this.load.audio('teleportSound', 'assets/teleport.mp3');
+                this.load.audio('bgMusic', `assets/music_${this.music}.mp3`);
+            }
 
-function drawMap(){
-  let grd;
-  switch(currentMap){
-    case 'forest': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#4CAF50'); grd.addColorStop(1,'#2E7D32'); break;
-    case 'desert': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#FFD54F'); grd.addColorStop(1,'#FFB300'); break;
-    case 'snow': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#E0F7FA'); grd.addColorStop(1,'#B2EBF2'); break;
-    case 'city': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#90A4AE'); grd.addColorStop(1,'#607D8B'); break;
-    case 'rural': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#A5D6A7'); grd.addColorStop(1,'#66BB6A'); break;
-    case 'beach': grd=ctx.createLinearGradient(0,0,0,canvas.height); grd.addColorStop(0,'#FFE082'); grd.addColorStop(1,'#FFCA28'); break;
-  }
-  ctx.fillStyle=grd;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-}
+            create() {
+                // Background
+                this.add.image(400, 300, 'background').setScale(2);
+                
+                // Physics
+                this.physics.world.setBounds(0, 0, 800, 600);
+                
+                // Platforms/obstacles
+                this.platforms = this.physics.add.staticGroup();
+                // Add some platforms, obstacles based on level/theme
+                this.platforms.create(400, 568, 'platform').setScale(2).refreshBody();
+                this.platforms.create(600, 400, 'platform');
+                this.platforms.create(50, 250, 'platform');
+                // More for shortcuts, etc.
+                
+                // Bounce pads
+                this.bounces = this.physics.add.staticGroup();
+                this.bounces.create(200, 500, 'bounce');
+                
+                // Teleports (one-time)
+                this.teleports = this.physics.add.staticGroup();
+                this.teleports.create(100, 100, 'teleport');
+                
+                // Players
+                this.players = [];
+                this.keys = [];
+                const controlSets = [
+                    { left: 'A', right: 'D', up: 'W' }, // Assume no down, or add {down: 'S'}
+                    { left: Phaser.Input.Keyboard.KeyCodes.LEFT, right: Phaser.Input.Keyboard.KeyCodes.RIGHT, up: Phaser.Input.Keyboard.KeyCodes.UP },
+                    { left: 'J', right: 'L', up: 'I' },
+                    { left: 'F', right: 'H', up: 'T' }
+                ];
+                for (let i = 0; i < this.numPlayers; i++) {
+                    let player = this.physics.add.sprite(100 + i * 100, 100, 'player');
+                    player.setBounce(0.2);
+                    player.setCollideWorldBounds(true);
+                    this.physics.add.collider(player, this.platforms);
+                    this.physics.add.collider(player, this.bounces, this.bounceHandler, null, this);
+                    this.physics.add.overlap(player, this.teleports, this.teleportHandler, null, this);
+                    this.players.push(player);
+                    
+                    let keys = this.input.keyboard.addKeys({
+                        left: controlSets[i].left,
+                        right: controlSets[i].right,
+                        up: controlSets[i].up
+                    });
+                    this.keys.push(keys);
+                }
+                
+                // Bots if any
+                this.botsGroup = [];
+                for (let i = 0; i < this.bots; i++) {
+                    let bot = this.physics.add.sprite(500, 100, 'bot');
+                    bot.setBounce(0.2);
+                    bot.setCollideWorldBounds(true);
+                    this.physics.add.collider(bot, this.platforms);
+                    this.physics.add.collider(bot, this.bounces, this.bounceHandler, null, this);
+                    this.physics.add.overlap(bot, this.teleports, this.teleportHandler, null, this);
+                    this.players.push(bot); // Treat as player
+                    this.botsGroup.push(bot);
+                }
+                
+                // Set initial 'it'
+                this.itPlayer = Phaser.Math.Between(0, this.totalPlayers - 1);
+                this.arrow = this.add.image(this.players[this.itPlayer].x, this.players[this.itPlayer].y - 50, 'arrow');
+                
+                // Collisions for tagging
+                for (let i = 0; i < this.totalPlayers; i++) {
+                    for (let j = i + 1; j < this.totalPlayers; j++) {
+                        this.physics.add.overlap(this.players[i], this.players[j], this.tagHandler, null, this);
+                    }
+                }
+                
+                // Scoreboard
+                this.scoreText = this.add.text(16, 16, 'Scores: ', { fontSize: '32px', fill: '#000' });
+                this.updateScoreText();
+                
+                // Sounds
+                this.tagSound = this.sound.add('tagSound');
+                this.teleportSound = this.sound.add('teleportSound');
+                this.bgMusic = this.sound.add('bgMusic', { loop: true });
+                this.bgMusic.play();
+                
+                // Touch controls for mobile
+                if (!this.sys.game.device.os.desktop) {
+                    // Simple touch: divide screen into left/right for each player, but complex for multi
+                    // For simplicity, for single player, touch left/right to move, tap to jump
+                    if (this.numPlayers === 1) {
+                        this.input.on('pointerdown', (pointer) => {
+                            if (pointer.x < 400) {
+                                this.players[0].setVelocityX(-160);
+                            } else {
+                                this.players[0].setVelocityX(160);
+                            }
+                        });
+                        this.input.on('pointerup', () => {
+                            this.players[0].setVelocityX(0);
+                        });
+                        // Jump on double tap or something
+                        // Simplified
+                    } // For multi, would need multiple touch zones, omitted for brevity
+                }
+            }
 
-function drawPlayers(){
-  players.forEach(p=>{
-    ctx.fillStyle=p.isIt?'yellow':p.color;
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,20,0,Math.PI*2);
-    ctx.fill();
-    // face
-    ctx.fillStyle='#000';
-    ctx.beginPath();
-    ctx.arc(p.x-7,p.y-5,3,0,Math.PI*2);
-    ctx.arc(p.x+7,p.y-5,3,0,Math.PI*2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(p.x,p.y+5,8,0,Math.PI);
-    ctx.stroke();
-  });
-}
+            update() {
+                // Update arrow position
+                this.arrow.setPosition(this.players[this.itPlayer].x, this.players[this.itPlayer].y - 50);
+                
+                // Player controls
+                for (let i = 0; i < this.numPlayers; i++) {
+                    let player = this.players[i];
+                    let keys = this.keys[i];
+                    
+                    if (keys.left.isDown) {
+                        player.setVelocityX(-160);
+                    } else if (keys.right.isDown) {
+                        player.setVelocityX(160);
+                    } else {
+                        player.setVelocityX(0);
+                    }
+                    
+                    if (keys.up.isDown && player.body.touching.down) {
+                        player.setVelocityY(-330);
+                    }
+                }
+                
+                // Bot AI
+                this.botsGroup.forEach(bot => {
+                    let target = this.players[0]; // Assume vs player 1
+                    if (this.itPlayer === this.players.indexOf(bot)) {
+                        // Chase
+                        if (target.x < bot.x) {
+                            bot.setVelocityX(-160);
+                        } else if (target.x > bot.x) {
+                            bot.setVelocityX(160);
+                        } else {
+                            bot.setVelocityX(0);
+                        }
+                        if (bot.body.touching.down && Math.abs(target.x - bot.x) < 100 && target.y < bot.y) {
+                            bot.setVelocityY(-330);
+                        }
+                    } else {
+                        // Run away
+                        if (target.x < bot.x) {
+                            bot.setVelocityX(160);
+                        } else if (target.x > bot.x) {
+                            bot.setVelocityX(-160);
+                        } else {
+                            bot.setVelocityX(0);
+                        }
+                        if (bot.body.touching.down && Math.abs(target.x - bot.x) < 100) {
+                            bot.setVelocityY(-330);
+                        }
+                    }
+                });
+                
+                // Check for round win, e.g., first to 5 tags
+                if (Math.max(...this.score) >= 5) {
+                    // End round, update rounds won, reset scores
+                    // For simplicity, alert winner
+                    let winner = this.score.indexOf(Math.max(...this.score)) + 1;
+                    alert(`Player ${winner} wins the round!`);
+                    this.score.fill(0);
+                    this.updateScoreText();
+                }
+            }
 
-function gameLoop(){
-  if(gameStarted){
-    drawMap();
-    update();
-    drawPlayers();
-  }
-  requestAnimationFrame(gameLoop);
-}
+            tagHandler(player1, player2) {
+                let it = this.players[this.itPlayer];
+                let tagged = (it === player1) ? player2 : player1;
+                this.itPlayer = this.players.indexOf(tagged);
+                // Increase score of tagger
+                this.score[this.players.indexOf(it)]++;
+                this.updateScoreText();
+                this.tagSound.play();
+            }
 
-gameLoop();
-</script>
+            bounceHandler(player, bounce) {
+                player.setVelocityY(-500); // Boost
+            }
+
+            teleportHandler(player, teleport) {
+                // Mislead: create fake
+                let fake = this.add.image(player.x, player.y, 'player');
+                this.time.delayedCall(2000, () => fake.destroy());
+                
+                // Teleport to random position
+                player.setPosition(Phaser.Math.Between(50, 750), Phaser.Math.Between(50, 550));
+                teleport.destroy();
+                this.teleportSound.play();
+            }
+
+            updateScoreText() {
+                let text = 'Scores: ';
+                this.score.forEach((s, i) => {
+                    text += `P${i+1}: ${s} `;
+                });
+                this.scoreText.setText(text);
+            }
+        }
+
+        var config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 300 },
+                    debug: false
+                }
+            },
+            scene: [MenuScene, GameScene]
+        };
+
+        var game = new Phaser.Game(config);
+    </script>
 </body>
 </html>
