@@ -1,231 +1,898 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<title>Tag Game</title>
-<style>
-  body { margin: 0; background: #f0f0f0; }
-  canvas { background: #222; display: block; margin: auto; }
-  #scoreboard { text-align: center; font-family: sans-serif; margin: 8px; }
-</style>
-</head>
-<body>
-<div id="scoreboard"></div>
-<canvas id="gameCanvas" width="600" height="400"></canvas>
-<script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+import React, { useState, useEffect, useRef } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 
-const playerSize = 20;
-const speeds = { human: 3, ai: 2.5 };
-const keysPressed = {};
-const NUM_LEVELS = 3;
-let currentLevel = 0;
-let gameRunning = false;
+const BoltGame = () => {
+  const [gameState, setGameState] = useState('menu');
+  const [numPlayers, setNumPlayers] = useState(2);
+  const [selectedMap, setSelectedMap] = useState(null);
+  const [players, setPlayers] = useState([]);
+  const [tagger, setTagger] = useState(0);
+  const [scores, setScores] = useState([0, 0, 0, 0]);
+  const [roundTime, setRoundTime] = useState(60);
+  const [teleportUsed, setTeleportUsed] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const canvasRef = useRef(null);
+  const keysPressed = useRef({});
+  const playersRef = useRef([]);
+  const taggerRef = useRef(0);
+  const teleportUsedRef = useRef(false);
 
-const levels = [
-  { obstacles: [{x:150,y:100,w:300,h:20}, {x:100,y:250,w:400,h:20}], pads: [{x:50,y:50,w:40,h:40}], teleports: [{x:500,y:350}] },
-  { obstacles: [{x:200,y:50,w:20,h:300}], pads: [{x:250,y:350,w:30,h:30}], teleports: [{x:50,y:350}] },
-  { obstacles: [{x:100,y:150,w:400,h:30}], pads: [{x:450,y:50,w:35,h:35}], teleports: [{x:550,y:10}] }
-];
-
-const playerColors = ['red','blue','green','yellow'];
-const controls = [
-  {up:'w', left:'a', right:'d'},
-  {up:'ArrowUp', left:'ArrowLeft', right:'ArrowRight'},
-  {up:'i', left:'j', right:'l'},
-  {up:'t', left:'f', right:'h'}
-];
-
-class Player {
-  constructor(id, isAI) {
-    this.id = id;
-    this.x = 50 + id*50;
-    this.y = 50;
-    this.width = playerSize;
-    this.height = playerSize;
-    this.color = playerColors[id];
-    this.isAI = isAI;
-    this.isIt = false;
-    this.teleportUsed = false;
-    this.score = 0;
-    this.velY = 0;
-    this.jumpPower = 5;
-    this.onGround = false;
-  }
-  
-  draw() {
-    ctx.fillStyle = this.color;
-    ctx.fillRect(this.x, this.y, this.width, this.height);
-    if(this.isIt) {
-      ctx.fillStyle = 'white';
-      ctx.beginPath();
-      ctx.moveTo(this.x + this.width/2, this.y - 10);
-      ctx.lineTo(this.x + this.width/2 + 5, this.y);
-      ctx.lineTo(this.x + this.width/2 - 5, this.y);
-      ctx.fill();
+  // Exact colors and controls from images
+  const playerConfigs = [
+    { 
+      color: '#E74C3C', 
+      name: 'RED', 
+      keys: { left: 'KeyA', right: 'KeyD', up: 'KeyW' }, 
+      displayKeys: ['W', 'A', 'D'],
+      bgColor: 'rgba(231, 76, 60, 0.3)'
+    },
+    { 
+      color: '#3498DB', 
+      name: 'BLUE', 
+      keys: { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp' }, 
+      displayKeys: ['↑', '←', '→'],
+      bgColor: 'rgba(52, 152, 219, 0.3)'
+    },
+    { 
+      color: '#F1C40F', 
+      name: 'YELLOW', 
+      keys: { left: 'KeyJ', right: 'KeyL', up: 'KeyI' }, 
+      displayKeys: ['I', 'J', 'L'],
+      bgColor: 'rgba(241, 196, 15, 0.3)'
+    },
+    { 
+      color: '#2ECC71', 
+      name: 'GREEN', 
+      keys: { left: 'KeyF', right: 'KeyH', up: 'KeyT' }, 
+      displayKeys: ['T', 'F', 'H'],
+      bgColor: 'rgba(46, 204, 113, 0.3)'
     }
-  }
+  ];
 
-  update() {
-    if(this.isAI) {
-      this.aiMove();
-    } else {
-      this.handleInput();
+  // Maps matching the exact themes from images
+  const maps = [
+    {
+      name: 'Magical',
+      bg: '#5BA3E8', // Blue sky from image 1
+      groundColor: '#FF1B8D', // Bright pink/magenta ground
+      groundTop: '#4CAF50', // Green grass top
+      treeColor: '#2ECC71',
+      treeTrunk: '#8B4513',
+      platforms: [
+        { x: 0, y: 520, w: 800, h: 80 },
+        { x: 80, y: 440, w: 120, h: 15, color: '#4CAF50' },
+        { x: 280, y: 380, w: 100, h: 15, color: '#4CAF50' },
+        { x: 450, y: 330, w: 150, h: 15, color: '#4CAF50' },
+        { x: 150, y: 280, w: 100, h: 15, color: '#4CAF50' },
+        { x: 500, y: 220, w: 120, h: 15, color: '#4CAF50' },
+        { x: 650, y: 440, w: 130, h: 15, color: '#4CAF50' }
+      ],
+      obstacles: [
+        { x: 350, y: 470, w: 40, h: 50, type: 'tree' },
+        { x: 600, y: 360, w: 50, h: 60, type: 'tree' }
+      ],
+      bouncePads: [
+        { x: 220, y: 510, w: 60, h: 12 },
+        { x: 550, y: 510, w: 60, h: 12 },
+        { x: 400, y: 320, w: 60, h: 12 }
+      ],
+      decorations: [
+        { x: 50, y: 480, type: 'mushroom', color: '#FF1493' },
+        { x: 700, y: 490, type: 'mushroom', color: '#FFB6C1' }
+      ],
+      teleport: { x: 100, y: 200, size: 35 }
+    },
+    {
+      name: 'Winter',
+      bg: '#A8D8EA', // Light blue winter sky
+      groundColor: '#E8F4F8', // Light icy ground
+      groundTop: '#FFFFFF', // White snow
+      treeColor: '#8B4513',
+      platforms: [
+        { x: 0, y: 520, w: 800, h: 80 },
+        { x: 100, y: 450, w: 110, h: 15, color: '#FFFFFF' },
+        { x: 300, y: 390, w: 90, h: 15, color: '#FFFFFF' },
+        { x: 480, y: 340, w: 140, h: 15, color: '#FFFFFF' },
+        { x: 180, y: 290, w: 110, h: 15, color: '#FFFFFF' },
+        { x: 520, y: 230, w: 100, h: 15, color: '#FFFFFF' },
+        { x: 600, y: 450, w: 140, h: 15, color: '#FFFFFF' }
+      ],
+      obstacles: [
+        { x: 250, y: 460, w: 35, h: 60, type: 'snowman' },
+        { x: 650, y: 370, w: 45, h: 80, type: 'snowman' }
+      ],
+      bouncePads: [
+        { x: 50, y: 510, w: 60, h: 12 },
+        { x: 430, y: 510, w: 60, h: 12 },
+        { x: 320, y: 330, w: 60, h: 12 }
+      ],
+      decorations: [
+        { x: 150, y: 485, type: 'candy', color: '#E74C3C' },
+        { x: 550, y: 495, type: 'candy', color: '#FFFFFF' }
+      ],
+      teleport: { x: 700, y: 180, size: 35 }
+    },
+    {
+      name: 'Desert',
+      bg: '#FFD54F', // Bright yellow desert sky
+      groundColor: '#F4A460', // Sandy orange ground
+      groundTop: '#FFE4B5', // Light sand top
+      platforms: [
+        { x: 0, y: 520, w: 800, h: 80 },
+        { x: 70, y: 460, w: 130, h: 15, color: '#D2691E' },
+        { x: 270, y: 400, w: 110, h: 15, color: '#D2691E' },
+        { x: 460, y: 350, w: 160, h: 15, color: '#D2691E' },
+        { x: 160, y: 300, w: 100, h: 15, color: '#D2691E' },
+        { x: 490, y: 240, w: 130, h: 15, color: '#D2691E' },
+        { x: 630, y: 460, w: 150, h: 15, color: '#D2691E' }
+      ],
+      obstacles: [
+        { x: 380, y: 455, w: 50, h: 65, type: 'sphinx' },
+        { x: 580, y: 365, w: 40, h: 75, type: 'pyramid' }
+      ],
+      bouncePads: [
+        { x: 210, y: 510, w: 60, h: 12 },
+        { x: 580, y: 510, w: 60, h: 12 },
+        { x: 370, y: 340, w: 60, h: 12 }
+      ],
+      decorations: [
+        { x: 120, y: 485, type: 'cactus', color: '#228B22' },
+        { x: 680, y: 490, type: 'palm', color: '#32CD32' }
+      ],
+      teleport: { x: 400, y: 180, size: 35 }
     }
-    this.applyPhysics();
-    this.checkCollision();
-  }
+  ];
 
-  handleInput() {
-    const ctrl = controls[this.id];
-    if(keysPressed[ctrl.left]) this.x -= speeds.human;
-    if(keysPressed[ctrl.right]) this.x += speeds.human;
-    if(keysPressed[ctrl.up] && this.onGround) {
-      this.velY = -this.jumpPower;
-      this.onGround = false;
-    }
-  }
-
-  aiMove() {
-    // Simple AI: Move randomly or chase/evade the "it" player
-    let itPlayer = players.find(p => p.isIt && p !== this);
-    if(!itPlayer) return;
-    // If AI is "it", chase closest player
-    if(this.isIt) {
-      if(this.x < itPlayer.x) this.x += speeds.ai;
-      if(this.x > itPlayer.x) this.x -= speeds.ai;
-    } else {
-      // If AI not "it", move away from "it" player
-      if(this.x < itPlayer.x) this.x -= speeds.ai;
-      if(this.x > itPlayer.x) this.x += speeds.ai;
-    }
-  }
-
-  applyPhysics() {
-    this.velY += 0.3; // gravity
-    this.y += this.velY;
-    if(this.y + this.height >= canvas.height - 10) {
-      this.y = canvas.height - 10 - this.height;
-      this.velY = 0;
-      this.onGround = true;
-    }
-  }
-
-  checkCollision() {
-    const level = levels[currentLevel];
-    // collide with obstacles
-    for(const obs of level.obstacles) {
-      if(this.x < obs.x + obs.w &&
-         this.x + this.width > obs.x &&
-         this.y < obs.y + obs.h &&
-         this.y + this.height > obs.y) {
-           // Simple collision resolution: push back
-           if(this.x < obs.x) this.x = obs.x - this.width;
-           else this.x = obs.x + obs.w;
+  const playSound = (type) => {
+    if (!soundEnabled) return;
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      if (type === 'tag') {
+        oscillator.frequency.value = 523;
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.15);
+      } else if (type === 'teleport') {
+        oscillator.frequency.value = 880;
+        oscillator.type = 'sine';
+        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.4);
+      } else if (type === 'bounce') {
+        oscillator.frequency.value = 330;
+        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
       }
+    } catch (e) {
+      console.log('Audio not supported');
     }
-    // collide with bounce pads
-    for(const pad of level.pads) {
-      if(this.x < pad.x + pad.w &&
-         this.x + this.width > pad.x &&
-         this.y < pad.y + pad.h &&
-         this.y + this.height > pad.y) {
-           if(this.onGround) {
-             this.velY = -this.jumpPower * 1.5;
-             this.onGround = false;
-           }
+  };
+
+  const drawCharacter = (ctx, x, y, width, height, color) => {
+    // Body - rounded rectangle
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, 5);
+    ctx.fill();
+    
+    // Black circle head/face
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(x + width/2, y + height/2, 12, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // White eyes
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(x + width/2 - 5, y + height/2 - 2, 3, 0, Math.PI * 2);
+    ctx.arc(x + width/2 + 5, y + height/2 - 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Triangular ears/horns on top
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x + width/2 - 10, y + 3);
+    ctx.lineTo(x + width/2 - 6, y - 8);
+    ctx.lineTo(x + width/2 - 2, y + 3);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.moveTo(x + width/2 + 2, y + 3);
+    ctx.lineTo(x + width/2 + 6, y - 8);
+    ctx.lineTo(x + width/2 + 10, y + 3);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Small colored accent on face
+    ctx.fillStyle = color;
+    ctx.fillRect(x + width/2 + 8, y + height/2 + 2, 6, 10);
+  };
+
+  const initializePlayers = () => {
+    const startPositions = [
+      { x: 50, y: 400 },
+      { x: 750, y: 400 },
+      { x: 200, y: 400 },
+      { x: 600, y: 400 }
+    ];
+    
+    const newPlayers = [];
+    for (let i = 0; i < numPlayers; i++) {
+      newPlayers.push({
+        x: startPositions[i].x,
+        y: startPositions[i].y,
+        vx: 0,
+        vy: 0,
+        width: 30,
+        height: 38,
+        onGround: false,
+        config: playerConfigs[i],
+        isAI: i === 1 && numPlayers === 1,
+        aiTimer: 0,
+        aiAction: 0
+      });
+    }
+    playersRef.current = newPlayers;
+    setPlayers(newPlayers);
+    const randomTagger = Math.floor(Math.random() * numPlayers);
+    setTagger(randomTagger);
+    taggerRef.current = randomTagger;
+    setTeleportUsed(false);
+    teleportUsedRef.current = false;
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (gameState === 'playing') {
+        keysPressed.current[e.code] = true;
+        e.preventDefault();
       }
-    }
-    // collide with teleport
-    for(const tp of level.teleports) {
-      if(!this.teleportUsed &&
-         this.x < tp.x + 20 &&
-         this.x + this.width > tp.x &&
-         this.y < tp.y + 20 &&
-         this.y + this.height > tp.y) {
-           this.x = 50;
-           this.y = 50;
-           this.teleportUsed = true;
-           // optional: mark teleport as used visually here
+    };
+
+    const handleKeyUp = (e) => {
+      keysPressed.current[e.code] = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [gameState]);
+
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const map = maps.find(m => m.name === selectedMap);
+
+    let lastTime = performance.now();
+    let animationId;
+
+    const checkCollision = (player, rect) => {
+      return player.x < rect.x + rect.w &&
+             player.x + player.width > rect.x &&
+             player.y < rect.y + rect.h &&
+             player.y + player.height > rect.y;
+    };
+
+    const gameLoop = (currentTime) => {
+      const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.05);
+      lastTime = currentTime;
+
+      const gravity = 1200;
+      const moveSpeed = 200;
+      const jumpForce = 450;
+      const airControl = 0.7;
+
+      playersRef.current.forEach((player, idx) => {
+        // AI Logic
+        if (player.isAI) {
+          player.aiTimer -= deltaTime;
+          if (player.aiTimer <= 0) {
+            player.aiTimer = Math.random() * 0.5 + 0.3;
+            player.aiAction = Math.floor(Math.random() * 5);
+          }
+
+          const target = playersRef.current[taggerRef.current];
+          if (idx === taggerRef.current) {
+            let nearest = null;
+            let minDist = Infinity;
+            playersRef.current.forEach((p, i) => {
+              if (i !== idx) {
+                const dist = Math.abs(p.x - player.x);
+                if (dist < minDist) {
+                  minDist = dist;
+                  nearest = p;
+                }
+              }
+            });
+            if (nearest) {
+              if (nearest.x < player.x - 30) player.vx = -moveSpeed * airControl;
+              else if (nearest.x > player.x + 30) player.vx = moveSpeed * airControl;
+              else player.vx = 0;
+            }
+          } else {
+            if (target) {
+              if (target.x < player.x - 50) player.vx = moveSpeed * airControl;
+              else if (target.x > player.x + 50) player.vx = -moveSpeed * airControl;
+              else player.vx = 0;
+            }
+          }
+
+          if (player.onGround && player.aiAction < 2) {
+            player.vy = -jumpForce;
+            player.onGround = false;
+          }
+        } else {
+          const control = airControl;
+          if (keysPressed.current[player.config.keys.left]) {
+            player.vx = -moveSpeed * control;
+          } else if (keysPressed.current[player.config.keys.right]) {
+            player.vx = moveSpeed * control;
+          } else {
+            player.vx *= 0.85;
+          }
+
+          if (keysPressed.current[player.config.keys.up] && player.onGround) {
+            player.vy = -jumpForce;
+            player.onGround = false;
+          }
+        }
+
+        player.vy += gravity * deltaTime;
+        player.x += player.vx * deltaTime;
+        player.y += player.vy * deltaTime;
+
+        if (player.x < 0) {
+          player.x = 0;
+          player.vx = 0;
+        }
+        if (player.x > 800 - player.width) {
+          player.x = 800 - player.width;
+          player.vx = 0;
+        }
+
+        player.onGround = false;
+        map.platforms.forEach(platform => {
+          if (player.x + player.width > platform.x &&
+              player.x < platform.x + platform.w &&
+              player.y + player.height >= platform.y &&
+              player.y + player.height <= platform.y + platform.h + Math.abs(player.vy * deltaTime) + 5 &&
+              player.vy >= 0) {
+            player.y = platform.y - player.height;
+            player.vy = 0;
+            player.onGround = true;
+          }
+        });
+
+        map.obstacles.forEach(obstacle => {
+          if (checkCollision(player, obstacle)) {
+            const overlapLeft = (player.x + player.width) - obstacle.x;
+            const overlapRight = (obstacle.x + obstacle.w) - player.x;
+            const overlapTop = (player.y + player.height) - obstacle.y;
+            const overlapBottom = (obstacle.y + obstacle.h) - player.y;
+
+            const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+
+            if (minOverlap === overlapLeft) player.x -= overlapLeft;
+            else if (minOverlap === overlapRight) player.x += overlapRight;
+            else if (minOverlap === overlapTop) {
+              player.y -= overlapTop;
+              player.vy = 0;
+            } else {
+              player.y += overlapBottom;
+              player.vy = 0;
+              player.onGround = true;
+            }
+          }
+        });
+
+        map.bouncePads.forEach(pad => {
+          if (player.x + player.width > pad.x &&
+              player.x < pad.x + pad.w &&
+              player.y + player.height >= pad.y &&
+              player.y + player.height <= pad.y + pad.h + 5 &&
+              player.vy >= 0) {
+            player.vy = -700;
+            playSound('bounce');
+          }
+        });
+
+        if (!teleportUsedRef.current) {
+          const dist = Math.sqrt(
+            Math.pow(player.x + player.width/2 - map.teleport.x, 2) +
+            Math.pow(player.y + player.height/2 - map.teleport.y, 2)
+          );
+          if (dist < map.teleport.size + 20) {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 200 + Math.random() * 200;
+            player.x = Math.max(50, Math.min(750, player.x + Math.cos(angle) * distance));
+            player.y = Math.max(100, Math.min(400, player.y + Math.sin(angle) * distance));
+            teleportUsedRef.current = true;
+            setTeleportUsed(true);
+            playSound('teleport');
+          }
+        }
+      });
+
+      const taggerPlayer = playersRef.current[taggerRef.current];
+      playersRef.current.forEach((player, idx) => {
+        if (idx !== taggerRef.current) {
+          const dx = (taggerPlayer.x + taggerPlayer.width/2) - (player.x + player.width/2);
+          const dy = (taggerPlayer.y + taggerPlayer.height/2) - (player.y + player.height/2);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < 30) {
+            taggerRef.current = idx;
+            setTagger(idx);
+            playSound('tag');
+            setScores(prev => {
+              const newScores = [...prev];
+              newScores[idx]++;
+              return newScores;
+            });
+          }
+        }
+      });
+
+      // Draw background
+      ctx.fillStyle = map.bg;
+      ctx.fillRect(0, 0, 800, 600);
+
+      // Draw ground
+      ctx.fillStyle = map.groundColor;
+      ctx.fillRect(0, 520, 800, 80);
+      ctx.fillStyle = map.groundTop;
+      ctx.fillRect(0, 520, 800, 8);
+
+      // Draw platforms
+      map.platforms.forEach(platform => {
+        if (platform.y < 520) {
+          ctx.fillStyle = platform.color || map.groundTop;
+          ctx.fillRect(platform.x, platform.y, platform.w, platform.h);
+          ctx.fillStyle = 'rgba(0,0,0,0.2)';
+          ctx.fillRect(platform.x, platform.y, platform.w, 3);
+        }
+      });
+
+      // Draw obstacles based on theme
+      map.obstacles.forEach(obs => {
+        if (obs.type === 'tree') {
+          // Tree trunk
+          ctx.fillStyle = map.treeTrunk || '#8B4513';
+          ctx.fillRect(obs.x + obs.w/4, obs.y + obs.h/3, obs.w/2, obs.h * 2/3);
+          // Tree top
+          ctx.fillStyle = map.treeColor || '#2ECC71';
+          ctx.beginPath();
+          ctx.arc(obs.x + obs.w/2, obs.y + obs.h/3, obs.w/1.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (obs.type === 'snowman') {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(obs.x + obs.w/2, obs.y + obs.h - 12, 12, 0, Math.PI * 2);
+          ctx.arc(obs.x + obs.w/2, obs.y + obs.h/2, 15, 0, Math.PI * 2);
+          ctx.fill();
+          // Face
+          ctx.fillStyle = '#000000';
+          ctx.beginPath();
+          ctx.arc(obs.x + obs.w/2 - 4, obs.y + obs.h/2 - 3, 2, 0, Math.PI * 2);
+          ctx.arc(obs.x + obs.w/2 + 4, obs.y + obs.h/2 - 3, 2, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (obs.type === 'sphinx' || obs.type === 'pyramid') {
+          ctx.fillStyle = '#DEB887';
+          ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+          ctx.fillStyle = '#F4A460';
+          ctx.beginPath();
+          ctx.moveTo(obs.x + obs.w/2, obs.y - 15);
+          ctx.lineTo(obs.x, obs.y);
+          ctx.lineTo(obs.x + obs.w, obs.y);
+          ctx.closePath();
+          ctx.fill();
+        }
+      });
+
+      // Draw decorations
+      if (map.decorations) {
+        map.decorations.forEach(dec => {
+          if (dec.type === 'mushroom') {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(dec.x + 8, dec.y + 15, 8, 15);
+            ctx.fillStyle = dec.color;
+            ctx.beginPath();
+            ctx.arc(dec.x + 12, dec.y + 15, 12, 0, Math.PI, true);
+            ctx.fill();
+          } else if (dec.type === 'candy') {
+            ctx.fillStyle = dec.color;
+            ctx.beginPath();
+            ctx.arc(dec.x, dec.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(dec.x - 6, dec.y - 6);
+            ctx.lineTo(dec.x + 6, dec.y + 6);
+            ctx.stroke();
+          } else if (dec.type === 'cactus') {
+            ctx.fillStyle = dec.color;
+            ctx.fillRect(dec.x + 8, dec.y, 8, 25);
+            ctx.fillRect(dec.x, dec.y + 8, 24, 8);
+          } else if (dec.type === 'palm') {
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(dec.x + 8, dec.y, 6, 20);
+            ctx.fillStyle = dec.color;
+            for (let i = 0; i < 5; i++) {
+              const angle = (Math.PI * 2 / 5) * i - Math.PI/2;
+              ctx.beginPath();
+              ctx.ellipse(dec.x + 11 + Math.cos(angle) * 12, dec.y + Math.sin(angle) * 12, 12, 4, angle, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        });
       }
-    }
+
+      // Draw bounce pads
+      ctx.fillStyle = '#FF69B4';
+      map.bouncePads.forEach(pad => {
+        ctx.fillRect(pad.x, pad.y, pad.w, pad.h);
+        ctx.fillStyle = '#FFB6C1';
+        ctx.fillRect(pad.x + 5, pad.y + 2, pad.w - 10, pad.h - 4);
+        ctx.fillStyle = '#FF69B4';
+      });
+
+      // Draw teleport
+      if (!teleportUsedRef.current) {
+        ctx.fillStyle = '#9B59B6';
+        ctx.beginPath();
+        ctx.arc(map.teleport.x, map.teleport.y, map.teleport.size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Swirl effect
+        ctx.strokeStyle = '#8E44AD';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) {
+          const angle = (performance.now() / 1000 + i * Math.PI * 2 / 3) % (Math.PI * 2);
+          const r = map.teleport.size * 0.6;
+          ctx.moveTo(map.teleport.x, map.teleport.y);
+          ctx.lineTo(
+            map.teleport.x + Math.cos(angle) * r,
+            map.teleport.y + Math.sin(angle) * r
+          );
+        }
+        ctx.stroke();
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('T', map.teleport.x, map.teleport.y);
+      }
+
+      // Draw players with exact character design
+      playersRef.current.forEach((player, idx) => {
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(player.x + player.width/2, player.y + player.height + 2, player.width/2, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw character
+        drawCharacter(ctx, player.x, player.y, player.width, player.height, player.config.color);
+        
+        // Tagger arrow (white)
+        if (idx === taggerRef.current) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 32px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('▼', player.x + player.width/2, player.y - 18);
+        }
+      });
+
+      setPlayers([...playersRef.current]);
+      animationId = requestAnimationFrame(gameLoop);
+    };
+
+    animationId = requestAnimationFrame(gameLoop);
+
+    const timer = setInterval(() => {
+      setRoundTime(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          cancelAnimationFrame(animationId);
+          setGameState('menu');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      clearInterval(timer);
+    };
+  }, [gameState, selectedMap, numPlayers]);
+
+  if (gameState === 'menu') {
+    return (
+      <div className="w-full h-screen bg-gradient-to-b from-blue-400 to-blue-300 flex flex-col items-center justify-center relative overflow-hidden">
+        {/* Music note icon */}
+        <div className="absolute top-4 right-4 cursor-pointer bg-white p-3 rounded-lg shadow-lg" onClick={() => setSoundEnabled(!soundEnabled)}>
+          {soundEnabled ? <Volume2 size={28} color="#3498DB" /> : <VolumeX size={28} color="#999" />}
+        </div>
+        
+        {/* Large TAG text */}
+        <h1 className="text-9xl font-black text-white mb-20" style={{ 
+          textShadow: '8px 8px 0px rgba(0,0,0,0.2)',
+          letterSpacing: '16px',
+          fontFamily: 'Arial Black, sans-serif'
+        }}>TAG</h1>
+        
+        {/* Character decorations around screen */}
+        <div className="absolute left-20 top-1/3">
+          <div className="w-16 h-20 bg-green-500 rounded"></div>
+        </div>
+        <div className="absolute right-20 top-1/2">
+          <div className="w-16 h-20 bg-green-500 rounded"></div>
+        </div>
+        
+        {/* Menu box */}
+        <div className="bg-pink-400 p-16 rounded-3xl shadow-2xl relative">
+          <button
+            onClick={() => { setNumPlayers(1); setGameState('mapSelect'); }}
+            className="block w-96 bg-gradient-to-r from-red-500 to-red-600 text-white text-3xl font-black py-6 px-12 rounded-2xl mb-6 hover:scale-105 transition-transform shadow-xl"
+            style={{ fontFamily: 'Arial Black, sans-serif' }}
+          >
+            1 PLAYER
+          </button>
+          <button
+            onClick={() => { setNumPlayers(2); setGameState('mapSelect'); }}
+            className="block w-96 bg-gradient-to-r from-red-500 to-red-600 text-white text-3xl font-black py-6 px-12 rounded-2xl mb-6 hover:scale-105 transition-transform shadow-xl"
+            style={{ fontFamily: 'Arial Black, sans-serif' }}
+          >
+            2 PLAYERS
+          </button>
+          <button
+            onClick={() => { setNumPlayers(3); setGameState('mapSelect'); }}
+            className="block w-96 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-3xl font-black py-6 px-12 rounded-2xl mb-6 hover:scale-105 transition-transform shadow-xl"
+            style={{ fontFamily: 'Arial Black, sans-serif' }}
+          >
+            3 PLAYERS
+          </button>
+          <button
+            onClick={() => { setNumPlayers(4); setGameState('mapSelect'); }}
+            className="block w-96 bg-gradient-to-r from-green-500 to-green-600 text-white text-3xl font-black py-6 px-12 rounded-2xl hover:scale-105 transition-transform shadow-xl"
+            style={{ fontFamily: 'Arial Black, sans-serif' }}
+          >
+            4 PLAYERS
+          </button>
+        </div>
+        
+        {scores.some(s => s > 0) && (
+          <div className="mt-8 bg-white p-6 rounded-xl shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-center">SCORES</h2>
+            <div className="flex gap-6">
+              {scores.map((score, idx) => idx < 4 && (
+                <div key={idx} className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded" style={{ backgroundColor: playerConfigs[idx].color }}></div>
+                  <span className="text-xl font-bold">{playerConfigs[idx].name}: {score}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
-}
 
-const players = [];
-let itPlayerIdx = 0;
-
-function initGame(numHumanPlayers=1) {
-  players.length = 0;
-  for(let i=0; i<4; i++) {
-    const isAI = i >= numHumanPlayers;
-    players.push(new Player(i, isAI));
+  if (gameState === 'mapSelect') {
+    return (
+      <div className="w-full h-screen bg-gradient-to-b from-cyan-400 to-cyan-300 flex flex-col items-center justify-center relative">
+        <button
+          onClick={() => setGameState('menu')}
+          className="absolute top-6 left-6 bg-white p-4 rounded-xl shadow-lg hover:scale-105 transition-transform border-4 border-cyan-600"
+        >
+          <span className="text-4xl font-bold text-cyan-600">←</span>
+        </button>
+        
+        <h1 className="text-7xl font-black text-white mb-16" style={{ 
+          textShadow: '6px 6px 0px rgba(0,0,0,0.2)',
+          fontFamily: 'Arial Black, sans-serif'
+        }}>CHOOSE MAP</h1>
+        
+        <div className="flex gap-10 mb-12">
+          {/* Magical World Map */}
+          <div 
+            onClick={() => { setSelectedMap('Magical'); setGameState('controls'); }}
+            className="cursor-pointer hover:scale-105 transition-transform"
+          >
+            <div className="w-80 h-56 bg-gradient-to-b from-blue-400 to-pink-500 rounded-3xl shadow-2xl flex flex-col items-center justify-center border-4 border-white relative overflow-hidden">
+              {/* Simple decorations */}
+              <div className="absolute left-4 bottom-4 w-12 h-16 bg-green-500 rounded"></div>
+              <div className="absolute right-4 bottom-4 w-10 h-10 bg-pink-400 rounded-full"></div>
+              <span className="text-white text-2xl font-black z-10" style={{ textShadow: '3px 3px 6px rgba(0,0,0,0.5)' }}>MAGICAL</span>
+            </div>
+          </div>
+          
+          {/* Winter Map */}
+          <div 
+            onClick={() => { setSelectedMap('Winter'); setGameState('controls'); }}
+            className="cursor-pointer hover:scale-105 transition-transform"
+          >
+            <div className="w-80 h-56 bg-gradient-to-b from-blue-200 to-blue-100 rounded-3xl shadow-2xl flex flex-col items-center justify-center border-4 border-white relative overflow-hidden">
+              {/* Snowman decoration */}
+              <div className="absolute left-8 bottom-8">
+                <div className="w-8 h-8 bg-white rounded-full"></div>
+                <div className="w-10 h-10 bg-white rounded-full mt-1"></div>
+              </div>
+              <div className="absolute right-8 bottom-8 w-6 h-12 bg-red-500"></div>
+              <span className="text-gray-700 text-2xl font-black z-10" style={{ textShadow: '2px 2px 4px rgba(255,255,255,0.8)' }}>WINTER</span>
+            </div>
+          </div>
+          
+          {/* Desert Map */}
+          <div 
+            onClick={() => { setSelectedMap('Desert'); setGameState('controls'); }}
+            className="cursor-pointer hover:scale-105 transition-transform"
+          >
+            <div className="w-80 h-56 bg-gradient-to-b from-yellow-300 to-orange-400 rounded-3xl shadow-2xl flex flex-col items-center justify-center border-4 border-white relative overflow-hidden">
+              {/* Pyramid and cactus */}
+              <div className="absolute left-6 bottom-6">
+                <div className="w-0 h-0 border-l-8 border-r-8 border-b-16 border-l-transparent border-r-transparent border-b-yellow-600" style={{ borderBottomWidth: '30px' }}></div>
+              </div>
+              <div className="absolute right-8 bottom-8 w-4 h-14 bg-green-600 rounded"></div>
+              <span className="text-white text-2xl font-black z-10" style={{ textShadow: '3px 3px 6px rgba(0,0,0,0.5)' }}>DESERT</span>
+            </div>
+          </div>
+        </div>
+        
+        <button
+          onClick={() => setGameState('menu')}
+          className="bg-white text-cyan-600 text-2xl font-black py-4 px-16 rounded-xl hover:scale-105 transition-transform shadow-xl border-4 border-cyan-600"
+          style={{ fontFamily: 'Arial Black, sans-serif' }}
+        >
+          GAME SETTINGS
+        </button>
+      </div>
+    );
   }
-  itPlayerIdx = 0;
-  players[itPlayerIdx].isIt = true;
-  gameRunning = true;
-  updateScoreboard();
-}
 
-function updateScoreboard() {
-  const scoreboard = document.getElementById('scoreboard');
-  scoreboard.innerHTML = players.map(p =>
-    `<span style="color:${p.color};">${p.isIt ? '🔴' : ''} Player ${p.id+1} Score: ${p.score}</span>`
-  ).join(' | ');
-}
-
-function handleTagging() {
-  const itPlayer = players[itPlayerIdx];
-  for(let i=0; i<players.length; i++) {
-    if(i === itPlayerIdx) continue;
-    const p = players[i];
-    if(rectIntersect(itPlayer, p)) {
-      itPlayer.isIt = false;
-      p.isIt = true;
-      itPlayerIdx = i;
-      itPlayer.score++;
-      updateScoreboard();
-      break;
-    }
+  if (gameState === 'controls') {
+    return (
+      <div className="w-full h-screen bg-gradient-to-b from-teal-400 to-teal-300 flex flex-col items-center justify-center relative">
+        <button
+          onClick={() => setGameState('mapSelect')}
+          className="absolute top-6 left-6 bg-white p-4 rounded-xl shadow-lg hover:scale-105 transition-transform border-4 border-teal-600"
+        >
+          <span className="text-4xl font-bold text-teal-600">↓</span>
+        </button>
+        
+        <h1 className="text-7xl font-black text-white mb-4" style={{ 
+          textShadow: '6px 6px 0px rgba(0,0,0,0.2)',
+          fontFamily: 'Arial Black, sans-serif'
+        }}>CONTROLS</h1>
+        <p className="text-white text-xl mb-12 font-bold">MAKE SURE THAT THE KEYBOARD ONLY SUPPORTS KEYSTROKES</p>
+        
+        <div className="flex gap-8 mb-12">
+          {[...Array(numPlayers)].map((_, idx) => {
+            const config = playerConfigs[idx];
+            return (
+              <div key={idx} className="relative">
+                {/* Color label on top */}
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 px-8 py-2 rounded-full text-white font-black text-xl shadow-lg" 
+                     style={{ backgroundColor: config.color }}>
+                  {config.name}
+                </div>
+                
+                {/* Main control box */}
+                <div className="bg-gray-600 bg-opacity-80 p-8 rounded-3xl shadow-2xl w-64 border-4" style={{ borderColor: config.color }}>
+                  {/* Character preview */}
+                  <div className="bg-gray-500 bg-opacity-60 rounded-2xl p-6 mb-6 flex items-center justify-center h-32">
+                    <div className="relative">
+                      {/* Character body */}
+                      <div className="w-16 h-20 rounded" style={{ backgroundColor: config.color }}>
+                        <div className="w-full h-full flex items-center justify-center">
+                          {/* Black face circle */}
+                          <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center relative">
+                            {/* White eyes */}
+                            <div className="absolute w-2 h-2 bg-white rounded-full" style={{ top: '12px', left: '8px' }}></div>
+                            <div className="absolute w-2 h-2 bg-white rounded-full" style={{ top: '12px', right: '8px' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Ears/horns */}
+                      <div className="absolute -top-2 left-3 w-0 h-0 border-l-4 border-r-4 border-b-8 border-l-transparent border-r-transparent" style={{ borderBottomColor: config.color }}></div>
+                      <div className="absolute -top-2 right-3 w-0 h-0 border-l-4 border-r-4 border-b-8 border-l-transparent border-r-transparent" style={{ borderBottomColor: config.color }}></div>
+                    </div>
+                  </div>
+                  
+                  {/* Control keys */}
+                  <div className="flex justify-center gap-2 mb-4">
+                    <div className="w-16 h-16 border-4 border-white rounded-lg flex items-center justify-center bg-gray-700 shadow-lg">
+                      <span className="text-white text-2xl font-black">{config.displayKeys[1]}</span>
+                    </div>
+                    <div className="w-16 h-16 border-4 border-white rounded-lg flex items-center justify-center bg-gray-700 shadow-lg">
+                      <span className="text-white text-2xl font-black">{config.displayKeys[0]}</span>
+                    </div>
+                    <div className="w-16 h-16 border-4 border-white rounded-lg flex items-center justify-center bg-gray-700 shadow-lg">
+                      <span className="text-white text-2xl font-black">{config.displayKeys[2]}</span>
+                    </div>
+                  </div>
+                  
+                  {/* CONTROL label */}
+                  <div className="text-center px-6 py-3 rounded-full text-white font-black text-lg shadow-lg" 
+                       style={{ backgroundColor: config.color }}>
+                    CONTROL
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        
+        <button
+          onClick={() => { initializePlayers(); setRoundTime(60); setGameState('playing'); }}
+          className="bg-white text-teal-600 text-5xl font-black py-6 px-24 rounded-xl hover:scale-105 transition-transform shadow-2xl border-4 border-teal-600"
+          style={{ fontFamily: 'Arial Black, sans-serif' }}
+        >
+          START
+        </button>
+      </div>
+    );
   }
-}
 
-function rectIntersect(a,b) {
-  return a.x < b.x + b.width && a.x + a.width > b.x &&
-         a.y < b.y + b.height && a.y + a.height > b.y;
-}
+  return (
+    <div className="w-full h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
+      <div className="mb-4 flex gap-8 items-center">
+        <div className="text-white text-4xl font-black bg-gray-800 px-8 py-4 rounded-xl shadow-lg">
+          TIME: {roundTime}s
+        </div>
+        <button
+          onClick={() => setGameState('menu')}
+          className="bg-red-500 text-white px-10 py-4 rounded-xl hover:bg-red-600 transition-colors font-black text-2xl shadow-lg"
+        >
+          QUIT
+        </button>
+      </div>
+      
+      <canvas
+        ref={canvasRef}
+        width={800}
+        height={600}
+        className="border-8 border-white shadow-2xl rounded-lg"
+        style={{ imageRendering: 'pixelated' }}
+      />
+      
+      <div className="mt-6 flex gap-8 bg-gray-800 px-10 py-5 rounded-xl shadow-lg">
+        {players.map((player, idx) => (
+          <div key={idx} className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded shadow-lg border-2 border-white" style={{ backgroundColor: player.config.color }}></div>
+            <span className="text-white font-black text-xl">{player.config.name}: {scores[idx]}</span>
+            {idx === tagger && <span className="text-yellow-300 text-3xl">★</span>}
+          </div>
+        ))}
+      </div>
+      
+      <div className="mt-4 text-white text-lg font-bold">
+        {!teleportUsed ? '🌀 Teleport Ready!' : '⚠️ Teleport Used'}
+      </div>
+    </div>
+  );
+};
 
-function gameLoop() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawLevel();
-  players.forEach(p => { p.update(); p.draw(); });
-  handleTagging();
-  if(gameRunning) requestAnimationFrame(gameLoop);
-}
-
-function drawLevel() {
-  const level = levels[currentLevel];
-  ctx.fillStyle = 'gray';
-  level.obstacles.forEach(obs => ctx.fillRect(obs.x, obs.y, obs.w, obs.h));
-  ctx.fillStyle = 'lime';
-  level.pads.forEach(pad => ctx.fillRect(pad.x, pad.y, pad.w, pad.h));
-  ctx.fillStyle = 'cyan';
-  level.teleports.forEach(tp => ctx.fillRect(tp.x, tp.y, 20, 20));
-}
-
-// Input handlers
-window.addEventListener('keydown', (e) => {
-  keysPressed[e.key] = true;
-});
-window.addEventListener('keyup', (e) => {
-  keysPressed[e.key] = false;
-});
-
-// Initialize and start game
-initGame(1);
-gameLoop();
-
-</script>
-</body>
-</html>
+export default BoltGame;
