@@ -1,280 +1,184 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Player, PowerUp, GameState, GameConfig, ArenaType } from '@/types/colorTag';
-import { 
-  checkCollision, 
-  movePlayer, 
-  handlePlayerCollision,
-  getArenaWalls,
-  spawnPowerUp,
-  checkWinner,
-  moveAIPlayer
-} from '@/utils/colorTagLogic';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Color Tag Game</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom right, #0f172a, #5b21b6);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    canvas {
+      border: 4px solid #8b5cf6;
+      border-radius: 12px;
+      background-color: #1e293b;
+      display: block;
+      margin-top: 20px;
+    }
+    #menu {
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #8b5cf6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px;
+    }
+    button:hover { background-color: #7c3aed; }
+  </style>
+</head>
+<body>
 
-interface ColorTagCanvasProps {
-  config: GameConfig;
-  onBackToMenu: () => void;
-}
+<div id="menu">
+  <h1>🎯 Color Tag Game</h1>
+  <button onclick="startGame(1)">Single Player</button>
+  <button onclick="startGame(2)">Two Players</button>
+  <button onclick="startGame(3)">Three Players</button>
+  <button onclick="startGame(4)">Four Players</button>
+</div>
 
-const CANVAS_WIDTH = 900;
-const CANVAS_HEIGHT = 650;
+<canvas id="gameCanvas" width="900" height="650"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const PLAYER_RADIUS = 15;
 const PLAYER_SPEED = 4;
 const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7'];
-const POWER_UP_TYPES: PowerUp['type'][] = ['speed', 'shield', 'freeze', 'teleport'];
+let players = [];
+let keysPressed = {};
+let gameRunning = false;
+let gameTime = 60;
+let winner = null;
 
-export const ColorTagCanvas = ({ config, onBackToMenu }: ColorTagCanvasProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const keysPressed = useRef<Set<string>>(new Set());
-  const lastPowerUpSpawn = useRef(Date.now());
-  const animationFrameId = useRef<number>();
+// Setup keyboard
+window.addEventListener('keydown', e => keysPressed[e.key.toLowerCase()] = true);
+window.addEventListener('keyup', e => keysPressed[e.key.toLowerCase()] = false);
 
-  const [gameState, setGameState] = useState<GameState>(() => {
-    const walls = getArenaWalls(config.arena, CANVAS_WIDTH, CANVAS_HEIGHT);
-    const players: Player[] = [];
-    
-    for (let i = 0; i < config.playerCount; i++) {
-      const angle = (i / config.playerCount) * Math.PI * 2;
-      const radius = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.35;
-      players.push({
-        id: i,
-        position: { x: CANVAS_WIDTH / 2 + Math.cos(angle) * radius, y: CANVAS_HEIGHT / 2 + Math.sin(angle) * radius },
-        velocity: { x: 0, y: 0 },
-        color: COLORS[i],
-        teamId: i,
-        isOriginal: true,
-        speed: PLAYER_SPEED,
-        invincible: false,
-        invincibleUntil: 0,
-        sprite: `/sprites/player${i + 1}.png`, // Optional character sprite
-      });
+function startGame(playerCount) {
+  document.getElementById('menu').style.display = 'none';
+  players = [];
+  winner = null;
+  gameTime = 60;
+  gameRunning = true;
+
+  for (let i = 0; i < playerCount; i++) {
+    const angle = (i / playerCount) * Math.PI * 2;
+    const radius = 200;
+    players.push({
+      x: canvas.width/2 + Math.cos(angle)*radius,
+      y: canvas.height/2 + Math.sin(angle)*radius,
+      color: COLORS[i],
+      isIt: i === 0, // Player 0 starts as "it"
+      vx: 0, vy: 0
+    });
+  }
+
+  requestAnimationFrame(gameLoop);
+  setInterval(() => {
+    if (gameRunning) {
+      gameTime--;
+      if (gameTime <= 0) gameRunning = false;
     }
+  }, 1000);
+}
 
-    return {
-      players,
-      powerUps: [],
-      walls,
-      gameTime: config.duration,
-      isRunning: true,
-      winner: null,
-      arena: config.arena
-    };
+function gameLoop() {
+  if (!gameRunning) {
+    drawGame();
+    drawWinner();
+    return;
+  }
+
+  // Move players
+  players.forEach((p, idx) => {
+    // Player controls
+    if (idx === 0) { // Player 1: WASD
+      p.vx = (keysPressed['d'] ? PLAYER_SPEED : 0) - (keysPressed['a'] ? PLAYER_SPEED : 0);
+      p.vy = (keysPressed['s'] ? PLAYER_SPEED : 0) - (keysPressed['w'] ? PLAYER_SPEED : 0);
+    } else if (idx === 1) { // Player 2: arrows
+      p.vx = (keysPressed['arrowright'] ? PLAYER_SPEED : 0) - (keysPressed['arrowleft'] ? PLAYER_SPEED : 0);
+      p.vy = (keysPressed['arrowdown'] ? PLAYER_SPEED : 0) - (keysPressed['arrowup'] ? PLAYER_SPEED : 0);
+    } else { // AI moves randomly
+      const target = players[0]; // AI chases player 0
+      p.vx = target.x > p.x ? 2 : -2;
+      p.vy = target.y > p.y ? 2 : -2;
+    }
+    p.x += p.vx;
+    p.y += p.vy;
+    // Keep inside canvas
+    p.x = Math.max(PLAYER_RADIUS, Math.min(canvas.width - PLAYER_RADIUS, p.x));
+    p.y = Math.max(PLAYER_RADIUS, Math.min(canvas.height - PLAYER_RADIUS, p.y));
   });
 
-  const playSound = (frequency: number, duration: number) => {
-    const audioContext = new AudioContext();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    oscillator.frequency.value = frequency;
-    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + duration);
-  };
+  // Check collisions
+  for (let i=0; i<players.length; i++) {
+    for (let j=i+1; j<players.length; j++) {
+      const dx = players[i].x - players[j].x;
+      const dy = players[i].y - players[j].y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < PLAYER_RADIUS*2) {
+        if (players[i].isIt) { players[j].isIt = true; players[i].isIt = false; }
+        else if (players[j].isIt) { players[i].isIt = true; players[j].isIt = false; }
+      }
+    }
+  }
 
-  /** Draws the entire game */
-  const drawGame = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  drawGame();
+  requestAnimationFrame(gameLoop);
+}
 
-    // Draw arena background
-    const backgrounds: Record<ArenaType, string> = {
-      forest: '#14532d',
-      snow: '#e0f2fe',
-      desert: '#fcd34d',
-      city: '#334155',
-      beach: '#facc15'
-    };
-    ctx.fillStyle = backgrounds[gameState.arena] || '#0f172a';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+function drawGame() {
+  ctx.clearRect(0,0,canvas.width, canvas.height);
 
-    // Draw walls
-    ctx.fillStyle = '#334155';
-    gameState.walls.forEach(wall => {
-      ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
-      ctx.strokeStyle = '#475569';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(wall.x, wall.y, wall.width, wall.height);
-    });
+  // Draw background
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(0,0,canvas.width, canvas.height);
 
-    // Draw power-ups
-    gameState.powerUps.forEach(powerUp => {
-      if (!powerUp.active) return;
-      const icons = { speed: '⚡', shield: '🛡️', freeze: '❄️', teleport: '✨' };
-      ctx.fillStyle = '#fbbf24';
-      ctx.beginPath();
-      ctx.arc(powerUp.position.x, powerUp.position.y, 18, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.font = '20px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(icons[powerUp.type], powerUp.position.x, powerUp.position.y);
-    });
-
-    // Draw players
-    const now = Date.now();
-    gameState.players.forEach(player => {
-      const isInvincible = player.invincible && player.invincibleUntil > now;
-      if (isInvincible && Math.floor(now / 100) % 2 === 0) ctx.globalAlpha = 0.5;
-      ctx.fillStyle = player.color;
-      ctx.beginPath();
-      ctx.arc(player.position.x, player.position.y, 15, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = player.isOriginal ? '#fbbf24' : '#ffffff';
-      ctx.lineWidth = player.isOriginal ? 4 : 2;
+  // Draw players
+  players.forEach(p => {
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, PLAYER_RADIUS, 0, Math.PI*2);
+    ctx.fill();
+    if (p.isIt) {
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 4;
       ctx.stroke();
-      if (player.isOriginal) {
-        ctx.fillStyle = '#fbbf24';
-        ctx.font = 'bold 20px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('👑', player.position.x, player.position.y - 25);
-      }
-      ctx.globalAlpha = 1;
-    });
-  }, [gameState]);
+    }
+  });
 
-  /** Updates game state every frame */
-  const updateGame = useCallback(() => {
-    if (!gameState.isRunning) return;
+  // Draw timer
+  ctx.fillStyle = 'white';
+  ctx.font = '24px Arial';
+  ctx.fillText(`Time: ${gameTime}s`, 20, 30);
+}
 
-    setGameState(prev => {
-      let newPlayers = [...prev.players];
-      const now = Date.now();
+function drawWinner() {
+  // Count who is “it” the most
+  const itPlayer = players.find(p=>p.isIt);
+  if (!itPlayer) return;
+  ctx.fillStyle = 'white';
+  ctx.font = '48px Arial';
+  ctx.fillText(`🎉 ${itPlayer.color} is IT! 🎉`, canvas.width/2 - 180, canvas.height/2);
+  const btn = document.createElement('button');
+  btn.innerText = 'Play Again';
+  btn.onclick = ()=>location.reload();
+  document.body.appendChild(btn);
+}
+</script>
 
-      // Player movement
-      newPlayers = newPlayers.map(player => {
-        if (player.id === 0) { // Player 1
-          let vx = 0, vy = 0;
-          if (keysPressed.current.has('w')) vy -= player.speed;
-          if (keysPressed.current.has('s')) vy += player.speed;
-          if (keysPressed.current.has('a')) vx -= player.speed;
-          if (keysPressed.current.has('d')) vx += player.speed;
-          return { ...player, velocity: { x: vx, y: vy } };
-        } else if (player.id === 1) { // Player 2
-          let vx = 0, vy = 0;
-          if (keysPressed.current.has('arrowup')) vy -= player.speed;
-          if (keysPressed.current.has('arrowdown')) vy += player.speed;
-          if (keysPressed.current.has('arrowleft')) vx -= player.speed;
-          if (keysPressed.current.has('arrowright')) vx += player.speed;
-          return { ...player, velocity: { x: vx, y: vy } };
-        } else { // AI for other players
-          return moveAIPlayer(player, newPlayers, prev.walls, CANVAS_WIDTH, CANVAS_HEIGHT);
-        }
-      });
-
-      // Move players
-      newPlayers = newPlayers.map(player => movePlayer(player, prev.walls, CANVAS_WIDTH, CANVAS_HEIGHT));
-
-      // Player collisions
-      for (let i = 0; i < newPlayers.length; i++) {
-        for (let j = i + 1; j < newPlayers.length; j++) {
-          if (checkCollision(newPlayers[i].position, newPlayers[j].position)) {
-            const converted1 = handlePlayerCollision(newPlayers[i], newPlayers[j], now);
-            const converted2 = handlePlayerCollision(newPlayers[j], newPlayers[i], now);
-            if (converted1) { newPlayers[j] = converted1; playSound(600,0.15); toast.success(`Player ${i+1} converted Player ${j+1}!`);}
-            if (converted2) { newPlayers[i] = converted2; playSound(600,0.15); toast.success(`Player ${j+1} converted Player ${i+1}!`);}
-          }
-        }
-      }
-
-      // Power-up collection
-      const activePowerUps = prev.powerUps.filter(powerUp => {
-        if (!powerUp.active) return false;
-        for (const player of newPlayers) {
-          if (checkCollision(player.position, powerUp.position)) {
-            playSound(800,0.2);
-            toast.info(`Power-up collected!`);
-            // Apply effects here (speed, shield, freeze, teleport)
-            return false;
-          }
-        }
-        return true;
-      });
-
-      // Spawn new power-ups
-      if (now - lastPowerUpSpawn.current > 5000 && activePowerUps.length < 3) {
-        activePowerUps.push({
-          id: Math.random().toString(),
-          position: spawnPowerUp(prev.walls, CANVAS_WIDTH, CANVAS_HEIGHT),
-          type: POWER_UP_TYPES[Math.floor(Math.random() * POWER_UP_TYPES.length)],
-          active: true
-        });
-        lastPowerUpSpawn.current = now;
-      }
-
-      // Winner check
-      const winner = checkWinner(newPlayers);
-      if (winner !== null) {
-        playSound(523, 0.8);
-        toast.success(`Team ${winner + 1} wins!`, { duration: 5000 });
-        return { ...prev, players: newPlayers, isRunning: false, winner };
-      }
-
-      return { ...prev, players: newPlayers, powerUps: activePowerUps };
-    });
-
-    drawGame();
-    animationFrameId.current = requestAnimationFrame(updateGame);
-  }, [gameState.isRunning, drawGame]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => keysPressed.current.add(e.key.toLowerCase());
-    const handleKeyUp = (e: KeyboardEvent) => keysPressed.current.delete(e.key.toLowerCase());
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    animationFrameId.current = requestAnimationFrame(updateGame);
-
-    const timer = setInterval(() => {
-      if (gameState.isRunning && gameState.gameTime > 0) {
-        setGameState(prev => {
-          const newTime = prev.gameTime - 1;
-          if (newTime === 0) toast.info('Time up! Most players win!');
-          return { ...prev, gameTime: Math.max(0, newTime), isRunning: newTime === 0 ? false : prev.isRunning };
-        });
-      }
-    }, 1000);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-      clearInterval(timer);
-      cancelAnimationFrame(animationFrameId.current!);
-    };
-  }, [updateGame, gameState.isRunning]);
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 gap-4">
-      <div className="flex items-center justify-between w-full max-w-[900px]">
-        <Button onClick={onBackToMenu} variant="outline" size="lg">← Menu</Button>
-        <div className="text-3xl font-black text-white">⏱️ {gameState.gameTime}s</div>
-        <div className="flex gap-3">
-          {Array.from(new Set(gameState.players.map(p => p.teamId))).map(teamId => {
-            const count = gameState.players.filter(p => p.teamId === teamId).length;
-            const color = gameState.players.find(p => p.teamId === teamId)?.color;
-            return (
-              <div key={teamId} className="flex items-center gap-2 bg-background/20 backdrop-blur px-3 py-2 rounded-lg">
-                <div className="w-6 h-6 rounded-full" style={{ backgroundColor: color }} />
-                <span className="text-white font-bold">×{count}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT}
-        className="border-4 border-purple-500 rounded-xl shadow-2xl shadow-purple-500/50" />
-
-      {!gameState.isRunning && gameState.winner !== null && (
-        <div className="text-center">
-          <h2 className="text-5xl font-black text-white mb-4">🎉 TEAM {gameState.winner + 1} WINS! 🎉</h2>
-          <Button onClick={onBackToMenu} size="lg" className="text-xl">Play Again</Button>
-        </div>
-      )}
-    </div>
-  );
-};
+</body>
+</html>
