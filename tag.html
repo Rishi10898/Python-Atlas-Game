@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Player, PowerUp, GameState, GameConfig } from '@/types/colorTag';
+import { Player, PowerUp, GameState, GameConfig, ArenaType } from '@/types/colorTag';
 import { 
   checkCollision, 
   movePlayer, 
   handlePlayerCollision,
   getArenaWalls,
   spawnPowerUp,
-  checkWinner
+  checkWinner,
+  moveAIPlayer
 } from '@/utils/colorTagLogic';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -20,9 +21,14 @@ const CANVAS_WIDTH = 900;
 const CANVAS_HEIGHT = 650;
 const PLAYER_SPEED = 4;
 const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7'];
+const POWER_UP_TYPES: PowerUp['type'][] = ['speed', 'shield', 'freeze', 'teleport'];
 
 export const ColorTagCanvas = ({ config, onBackToMenu }: ColorTagCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const keysPressed = useRef<Set<string>>(new Set());
+  const lastPowerUpSpawn = useRef(Date.now());
+  const animationFrameId = useRef<number>();
+
   const [gameState, setGameState] = useState<GameState>(() => {
     const walls = getArenaWalls(config.arena, CANVAS_WIDTH, CANVAS_HEIGHT);
     const players: Player[] = [];
@@ -32,17 +38,15 @@ export const ColorTagCanvas = ({ config, onBackToMenu }: ColorTagCanvasProps) =>
       const radius = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.35;
       players.push({
         id: i,
-        position: {
-          x: CANVAS_WIDTH / 2 + Math.cos(angle) * radius,
-          y: CANVAS_HEIGHT / 2 + Math.sin(angle) * radius
-        },
+        position: { x: CANVAS_WIDTH / 2 + Math.cos(angle) * radius, y: CANVAS_HEIGHT / 2 + Math.sin(angle) * radius },
         velocity: { x: 0, y: 0 },
         color: COLORS[i],
         teamId: i,
         isOriginal: true,
         speed: PLAYER_SPEED,
         invincible: false,
-        invincibleUntil: 0
+        invincibleUntil: 0,
+        sprite: `/sprites/player${i + 1}.png`, // Optional character sprite
       });
     }
 
@@ -52,36 +56,40 @@ export const ColorTagCanvas = ({ config, onBackToMenu }: ColorTagCanvasProps) =>
       walls,
       gameTime: config.duration,
       isRunning: true,
-      winner: null
+      winner: null,
+      arena: config.arena
     };
   });
-
-  const keysPressed = useRef<Set<string>>(new Set());
-  const lastPowerUpSpawn = useRef(Date.now());
 
   const playSound = (frequency: number, duration: number) => {
     const audioContext = new AudioContext();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
     oscillator.frequency.value = frequency;
     gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-    
     oscillator.start();
     oscillator.stop(audioContext.currentTime + duration);
   };
 
+  /** Draws the entire game */
   const drawGame = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.fillStyle = '#0f172a';
+    // Draw arena background
+    const backgrounds: Record<ArenaType, string> = {
+      forest: '#14532d',
+      snow: '#e0f2fe',
+      desert: '#fcd34d',
+      city: '#334155',
+      beach: '#facc15'
+    };
+    ctx.fillStyle = backgrounds[gameState.arena] || '#0f172a';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // Draw walls
@@ -96,7 +104,6 @@ export const ColorTagCanvas = ({ config, onBackToMenu }: ColorTagCanvasProps) =>
     // Draw power-ups
     gameState.powerUps.forEach(powerUp => {
       if (!powerUp.active) return;
-      
       const icons = { speed: '⚡', shield: '🛡️', freeze: '❄️', teleport: '✨' };
       ctx.fillStyle = '#fbbf24';
       ctx.beginPath();
@@ -112,31 +119,25 @@ export const ColorTagCanvas = ({ config, onBackToMenu }: ColorTagCanvasProps) =>
     const now = Date.now();
     gameState.players.forEach(player => {
       const isInvincible = player.invincible && player.invincibleUntil > now;
-      
-      if (isInvincible && Math.floor(now / 100) % 2 === 0) {
-        ctx.globalAlpha = 0.5;
-      }
-
+      if (isInvincible && Math.floor(now / 100) % 2 === 0) ctx.globalAlpha = 0.5;
       ctx.fillStyle = player.color;
       ctx.beginPath();
       ctx.arc(player.position.x, player.position.y, 15, 0, Math.PI * 2);
       ctx.fill();
-      
       ctx.strokeStyle = player.isOriginal ? '#fbbf24' : '#ffffff';
       ctx.lineWidth = player.isOriginal ? 4 : 2;
       ctx.stroke();
-
       if (player.isOriginal) {
         ctx.fillStyle = '#fbbf24';
         ctx.font = 'bold 20px Arial';
         ctx.textAlign = 'center';
         ctx.fillText('👑', player.position.x, player.position.y - 25);
       }
-
       ctx.globalAlpha = 1;
     });
   }, [gameState]);
 
+  /** Updates game state every frame */
   const updateGame = useCallback(() => {
     if (!gameState.isRunning) return;
 
@@ -144,59 +145,50 @@ export const ColorTagCanvas = ({ config, onBackToMenu }: ColorTagCanvasProps) =>
       let newPlayers = [...prev.players];
       const now = Date.now();
 
-      // Update velocities based on input
+      // Player movement
       newPlayers = newPlayers.map(player => {
-        let vx = 0, vy = 0;
-        
-        if (player.id === 0) {
+        if (player.id === 0) { // Player 1
+          let vx = 0, vy = 0;
           if (keysPressed.current.has('w')) vy -= player.speed;
           if (keysPressed.current.has('s')) vy += player.speed;
           if (keysPressed.current.has('a')) vx -= player.speed;
           if (keysPressed.current.has('d')) vx += player.speed;
-        } else if (player.id === 1) {
+          return { ...player, velocity: { x: vx, y: vy } };
+        } else if (player.id === 1) { // Player 2
+          let vx = 0, vy = 0;
           if (keysPressed.current.has('arrowup')) vy -= player.speed;
           if (keysPressed.current.has('arrowdown')) vy += player.speed;
           if (keysPressed.current.has('arrowleft')) vx -= player.speed;
           if (keysPressed.current.has('arrowright')) vx += player.speed;
+          return { ...player, velocity: { x: vx, y: vy } };
+        } else { // AI for other players
+          return moveAIPlayer(player, newPlayers, prev.walls, CANVAS_WIDTH, CANVAS_HEIGHT);
         }
-
-        return { ...player, velocity: { x: vx, y: vy } };
       });
 
       // Move players
-      newPlayers = newPlayers.map(player => 
-        movePlayer(player, prev.walls, CANVAS_WIDTH, CANVAS_HEIGHT)
-      );
+      newPlayers = newPlayers.map(player => movePlayer(player, prev.walls, CANVAS_WIDTH, CANVAS_HEIGHT));
 
-      // Check collisions
+      // Player collisions
       for (let i = 0; i < newPlayers.length; i++) {
         for (let j = i + 1; j < newPlayers.length; j++) {
           if (checkCollision(newPlayers[i].position, newPlayers[j].position)) {
             const converted1 = handlePlayerCollision(newPlayers[i], newPlayers[j], now);
             const converted2 = handlePlayerCollision(newPlayers[j], newPlayers[i], now);
-            
-            if (converted1) {
-              newPlayers[j] = converted1;
-              playSound(600, 0.15);
-              toast.success(`Player ${i + 1} converted Player ${j + 1}!`);
-            }
-            if (converted2) {
-              newPlayers[i] = converted2;
-              playSound(600, 0.15);
-              toast.success(`Player ${j + 1} converted Player ${i + 1}!`);
-            }
+            if (converted1) { newPlayers[j] = converted1; playSound(600,0.15); toast.success(`Player ${i+1} converted Player ${j+1}!`);}
+            if (converted2) { newPlayers[i] = converted2; playSound(600,0.15); toast.success(`Player ${j+1} converted Player ${i+1}!`);}
           }
         }
       }
 
-      // Check power-up collection
+      // Power-up collection
       const activePowerUps = prev.powerUps.filter(powerUp => {
         if (!powerUp.active) return false;
-        
         for (const player of newPlayers) {
           if (checkCollision(player.position, powerUp.position)) {
-            playSound(800, 0.2);
+            playSound(800,0.2);
             toast.info(`Power-up collected!`);
+            // Apply effects here (speed, shield, freeze, teleport)
             return false;
           }
         }
@@ -205,17 +197,16 @@ export const ColorTagCanvas = ({ config, onBackToMenu }: ColorTagCanvasProps) =>
 
       // Spawn new power-ups
       if (now - lastPowerUpSpawn.current > 5000 && activePowerUps.length < 3) {
-        const types: PowerUp['type'][] = ['speed', 'shield', 'freeze', 'teleport'];
         activePowerUps.push({
           id: Math.random().toString(),
           position: spawnPowerUp(prev.walls, CANVAS_WIDTH, CANVAS_HEIGHT),
-          type: types[Math.floor(Math.random() * types.length)],
+          type: POWER_UP_TYPES[Math.floor(Math.random() * POWER_UP_TYPES.length)],
           active: true
         });
         lastPowerUpSpawn.current = now;
       }
 
-      // Check winner
+      // Winner check
       const winner = checkWinner(newPlayers);
       if (winner !== null) {
         playSound(523, 0.8);
@@ -225,34 +216,25 @@ export const ColorTagCanvas = ({ config, onBackToMenu }: ColorTagCanvasProps) =>
 
       return { ...prev, players: newPlayers, powerUps: activePowerUps };
     });
-  }, [gameState.isRunning]);
+
+    drawGame();
+    animationFrameId.current = requestAnimationFrame(updateGame);
+  }, [gameState.isRunning, drawGame]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      keysPressed.current.add(e.key.toLowerCase());
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      keysPressed.current.delete(e.key.toLowerCase());
-    };
-
+    const handleKeyDown = (e: KeyboardEvent) => keysPressed.current.add(e.key.toLowerCase());
+    const handleKeyUp = (e: KeyboardEvent) => keysPressed.current.delete(e.key.toLowerCase());
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
-    const gameLoop = setInterval(() => {
-      updateGame();
-      drawGame();
-    }, 1000 / 60);
+    animationFrameId.current = requestAnimationFrame(updateGame);
 
     const timer = setInterval(() => {
       if (gameState.isRunning && gameState.gameTime > 0) {
         setGameState(prev => {
           const newTime = prev.gameTime - 1;
-          if (newTime === 0) {
-            toast.info('Time up! Most players win!');
-            return { ...prev, gameTime: 0, isRunning: false };
-          }
-          return { ...prev, gameTime: newTime };
+          if (newTime === 0) toast.info('Time up! Most players win!');
+          return { ...prev, gameTime: Math.max(0, newTime), isRunning: newTime === 0 ? false : prev.isRunning };
         });
       }
     }, 1000);
@@ -260,20 +242,16 @@ export const ColorTagCanvas = ({ config, onBackToMenu }: ColorTagCanvasProps) =>
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      clearInterval(gameLoop);
       clearInterval(timer);
+      cancelAnimationFrame(animationFrameId.current!);
     };
-  }, [updateGame, drawGame, gameState.isRunning, gameState.gameTime]);
+  }, [updateGame, gameState.isRunning]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 gap-4">
       <div className="flex items-center justify-between w-full max-w-[900px]">
-        <Button onClick={onBackToMenu} variant="outline" size="lg">
-          ← Menu
-        </Button>
-        <div className="text-3xl font-black text-white">
-          ⏱️ {gameState.gameTime}s
-        </div>
+        <Button onClick={onBackToMenu} variant="outline" size="lg">← Menu</Button>
+        <div className="text-3xl font-black text-white">⏱️ {gameState.gameTime}s</div>
         <div className="flex gap-3">
           {Array.from(new Set(gameState.players.map(p => p.teamId))).map(teamId => {
             const count = gameState.players.filter(p => p.teamId === teamId).length;
@@ -288,21 +266,13 @@ export const ColorTagCanvas = ({ config, onBackToMenu }: ColorTagCanvasProps) =>
         </div>
       </div>
 
-      <canvas
-        ref={canvasRef}
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
-        className="border-4 border-purple-500 rounded-xl shadow-2xl shadow-purple-500/50"
-      />
+      <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT}
+        className="border-4 border-purple-500 rounded-xl shadow-2xl shadow-purple-500/50" />
 
       {!gameState.isRunning && gameState.winner !== null && (
         <div className="text-center">
-          <h2 className="text-5xl font-black text-white mb-4">
-            🎉 TEAM {gameState.winner + 1} WINS! 🎉
-          </h2>
-          <Button onClick={onBackToMenu} size="lg" className="text-xl">
-            Play Again
-          </Button>
+          <h2 className="text-5xl font-black text-white mb-4">🎉 TEAM {gameState.winner + 1} WINS! 🎉</h2>
+          <Button onClick={onBackToMenu} size="lg" className="text-xl">Play Again</Button>
         </div>
       )}
     </div>
